@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>پنل مدیریت تحت وب اسمارت‌لانچ — نسخه فارسی (رفع باگ رسپانسیو v3)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            cyber: {
+              bg: '#080c14',
+              panel: '#0f172a',
+              card: '#162033',
+              border: '#23324d',
+              cyan: '#00f2fe',
+              emerald: '#10b981',
+              amber: '#f59e0b',
+              rose: '#f43f5e',
+              purple: '#a855f7'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+    body {
+      font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif;
+      background-color: #080c14;
+      color: #f1f5f9;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; direction: ltr; display: inline-block; }
+    .pc-card { transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1); }
+    .pc-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -6px rgba(0, 242, 254, 0.14); }
+    .pc-active-inspect { outline: 2px solid #00f2fe; box-shadow: 0 0 18px rgba(0, 242, 254, 0.22); }
+    .pc-multi-checked { background: linear-gradient(145deg, rgba(6, 182, 212, 0.14), rgba(22, 32, 51, 0.95)); border-color: #06b6d4 !important; }
+
+    /* شبکه هوشمند رسپانسیو بر اساس فضای واقعی وسط صفحه (جلوگیری کامل از فشرده شدن کارت‌ها) */
+    .stations-auto-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+      gap: 0.875rem;
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #080c14; }
+    ::-webkit-scrollbar-thumb { background: #23324d; border-radius: 4px; }
+  </style>
+</head>
+<body class="h-screen flex flex-col lg:flex-row overflow-hidden select-none">
+
+  <!-- پس‌زمینه تیره موبایل برای منو و کشوی بازرس -->
+  <div id="mobile-backdrop" onclick="closeAllDrawers()" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-30 hidden lg:hidden"></div>
+
+  <!-- نوار کناری راست (Sidebar) -->
+  <aside id="sidebar-drawer" class="fixed lg:static inset-y-0 right-0 z-40 w-64 xl:w-72 bg-cyber-panel border-l border-cyber-border flex flex-col justify-between shrink-0 transform translate-x-full lg:translate-x-0 transition-transform duration-200">
+    <div class="overflow-y-auto">
+      <!-- هدر برند -->
+      <div class="h-16 px-4 flex items-center justify-between border-b border-cyber-border">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0">
+            <i data-lucide="cpu" class="w-5 h-5 text-slate-950"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="font-bold text-sm text-white flex items-center gap-1.5">
+              <span>اسمارت‌لانچ</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 mono">v4.8 PRO</span>
+            </div>
+            <div class="text-[11px] text-slate-400 truncate">پنل مدیریت گیم‌نت و کنسول</div>
+          </div>
+        </div>
+        <button onclick="toggleSidebar(false)" class="lg:hidden text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- منوی اصلی -->
+      <nav class="p-3 space-y-1">
+        <button onclick="switchTab('computers')" id="nav-computers" class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+          <i data-lucide="monitor" class="w-4 h-4 shrink-0"></i>
+          <span class="truncate">نمای کلی سیستم‌ها و کنسول‌ها</span>
+        </button>
+        <button onclick="switchTab('members')" id="nav-members" class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-slate-200">
+          <i data-lucide="users" class="w-4 h-4 shrink-0"></i>
+          <span class="truncate">مدیریت پیشرفته اکانت و شارژ</span>
+        </button>
+        <button onclick="switchTab('pos')" id="nav-pos" class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-slate-200">
+          <i data-lucide="shopping-bag" class="w-4 h-4 shrink-0"></i>
+          <span class="truncate">بوفه، خوراکی و پکیج زمان</span>
+        </button>
+        <button onclick="switchTab('api')" id="nav-api" class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-slate-200">
+          <i data-lucide="terminal" class="w-4 h-4 shrink-0"></i>
+          <span class="truncate">کنسول دستورات TCP (پورت 7831)</span>
+        </button>
+      </nav>
+
+      <!-- فیلتر سالن‌ها -->
+      <div class="px-4 pt-3 border-t border-cyber-border">
+        <div class="text-[11px] font-bold text-slate-400 mb-2">فیلتر بخش‌های گیم‌نت</div>
+        <div class="space-y-1">
+          <button onclick="filterZone('ALL')" class="zone-btn w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs bg-slate-800 text-white font-semibold" data-zone="ALL">
+            <span>همه ایستگاه‌ها</span><span class="mono text-[11px] text-cyan-400">20</span>
+          </button>
+          <button onclick="filterZone('Pro Arena')" class="zone-btn w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-400 hover:bg-slate-800/50" data-zone="Pro Arena">
+            <span>سالن ई-اسپورت (PC)</span><span class="mono text-[11px]">10</span>
+          </button>
+          <button onclick="filterZone('VIP Bootcamp')" class="zone-btn w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-400 hover:bg-slate-800/50" data-zone="VIP Bootcamp">
+            <span>اتاق VIP بوت‌کمپ</span><span class="mono text-[11px]">6</span>
+          </button>
+          <button onclick="filterZone('Console Lounge')" class="zone-btn w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-400 hover:bg-slate-800/50" data-zone="Console Lounge">
+            <span>سالن کنسول PS5 (پایه ۱۲۰)</span><span class="mono text-[11px]">4</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- راهنمای تعرفه کنسول -->
+      <div class="mx-4 mt-4 p-3 rounded-xl bg-purple-500/10 border border-purple-500/25 text-[11px] space-y-1">
+        <div class="font-bold text-purple-300 flex items-center gap-1.5">
+          <i data-lucide="gamepad-2" class="w-3.5 h-3.5 shrink-0"></i>
+          <span>تعرفه ساعتی کنسول‌ها</span>
+        </div>
+        <div class="flex justify-between text-slate-300">
+          <span>نرخ پایه (تک/دو دسته):</span>
+          <span class="font-bold text-white">۱۲۰,۰۰۰ تومان</span>
+        </div>
+        <div class="flex justify-between text-slate-300">
+          <span>هر دسته اضافه:</span>
+          <span class="font-bold text-amber-300">+۴۰,۰۰۰ تومان</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- فوتر وضعیت اتصال و ادمین -->
+    <div class="p-4 border-t border-cyber-border bg-slate-950/70 space-y-2">
+      <div class="flex items-center justify-between gap-1">
+        <span class="text-xs text-slate-300 flex items-center gap-1.5 truncate">
+          <span id="conn-dot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
+          <span id="conn-label" class="font-semibold truncate">شبیه‌ساز فعال (7831)</span>
+        </span>
+        <button onclick="openSettingsModal()" class="text-xs text-cyan-400 hover:underline flex items-center gap-1 shrink-0">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> احراز هویت
+        </button>
+      </div>
+      <div class="flex items-center justify-between text-[11px] text-slate-400">
+        <span>اپراتور فعال:</span>
+        <span id="active-operator-badge" class="mono text-emerald-400 font-semibold">mk_supervisor</span>
+      </div>
+      <div class="text-[10px] text-slate-500 mono truncate" id="conn-host-display">ws://127.0.0.1:8080 -> 127.0.0.1:7831</div>
+    </div>
+  </aside>
+
+  <!-- فضای کاری میانی -->
+  <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+
+    <!-- هدر بالایی و آمار لحظه‌ای -->
+    <header class="bg-cyber-panel border-b border-cyber-border px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0">
+      <div class="flex items-center gap-3">
+        <button onclick="toggleSidebar(true)" class="lg:hidden p-2 rounded-lg bg-slate-800 text-slate-200">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+
+        <div class="flex flex-wrap items-center gap-3 sm:gap-4 text-xs">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span class="text-slate-400">فعال:</span>
+            <span class="mono font-bold text-white" id="kpi-active">0 / 20</span>
+          </div>
+          <div class="hidden sm:block h-4 w-px bg-cyber-border"></div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+            <span class="text-slate-400">آزاد:</span>
+            <span class="mono font-bold text-cyan-300" id="kpi-free">0</span>
+          </div>
+          <div class="hidden sm:block h-4 w-px bg-cyber-border"></div>
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="wallet" class="w-4 h-4 text-emerald-400"></i>
+            <span class="text-slate-400">صندوق شیفت:</span>
+            <span class="font-bold text-emerald-400" id="kpi-revenue">۰ تومان</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ابزارهای جستجو و انتخاب چندتایی -->
+      <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+        <div class="relative flex-1 sm:flex-initial">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute right-3 top-2.5"></i>
+          <input id="search-input" oninput="renderStations()" type="text" placeholder="جستجوی سیستم، کاربر یا بازی..." class="w-full sm:w-52 bg-slate-900 border border-cyber-border rounded-xl pr-9 pl-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-400" />
+        </div>
+        <button onclick="selectAllVisible()" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cyber-border text-xs text-cyan-300 flex items-center gap-1 whitespace-nowrap">
+          <i data-lucide="check-square" class="w-3.5 h-3.5"></i> انتخاب همه
+        </button>
+        <button onclick="openBroadcastModal()" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cyber-border text-xs text-slate-200 flex items-center gap-1 whitespace-nowrap">
+          <i data-lucide="megaphone" class="w-3.5 h-3.5 text-amber-400"></i> پیام همگانی
+        </button>
+        <button onclick="toggleInspector(true)" class="xl:hidden px-2.5 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-xs text-cyan-300 flex items-center gap-1 whitespace-nowrap">
+          <i data-lucide="sliders" class="w-3.5 h-3.5"></i> کنترل ایستگاه
+        </button>
+      </div>
+    </header>
+
+    <!-- نوار عملیات گروهی (Multi-Select Action Bar) -->
+    <div id="bulk-action-bar" class="hidden bg-gradient-to-l from-cyan-950/90 via-slate-900 to-slate-900 border-b border-cyan-500/40 px-4 py-2.5 flex-wrap items-center justify-between gap-2 shrink-0">
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-2.5 py-1 rounded-lg bg-cyan-500 text-slate-950 font-extrabold mono" id="bulk-count-badge">0</span>
+        <span class="font-semibold text-cyan-200">ایستگاه انتخاب شده است</span>
+        <button onclick="clearMultiSelect()" class="text-slate-400 hover:text-white underline mr-2 text-[11px]">لغو انتخاب</button>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-1.5">
+        <div class="flex items-center bg-slate-950 border border-cyber-border rounded-lg overflow-hidden">
+          <input id="bulk-custom-mins" type="number" value="30" class="w-16 bg-transparent px-2 py-1 text-xs text-center text-white mono focus:outline-none" placeholder="دقیقه" />
+          <button onclick="bulkAdjustTime(1)" class="px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-semibold border-r border-cyber-border whitespace-nowrap">+ زمان</button>
+          <button onclick="bulkAdjustTime(-1)" class="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-semibold border-r border-cyber-border whitespace-nowrap">- زمان</button>
+        </div>
+
+        <button onclick="bulkLoginWalkIn()" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-200 text-xs font-medium whitespace-nowrap">شروع نشست گروهی</button>
+        <button onclick="bulkSendMessage()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs whitespace-nowrap">ارسال پیام</button>
+        <button onclick="bulkForceLogout()" class="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 text-xs font-medium whitespace-nowrap">خروج گروهی</button>
+        <button onclick="bulkPowerAction('WakeOnLAN')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs" title="روشن کردن با شبکه">WOL</button>
+        <button onclick="bulkPowerAction('Reboot')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs">ریستارت</button>
+        <button onclick="bulkPowerAction('Shutdown')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-rose-400 text-xs">خاموش</button>
+      </div>
+    </div>
+
+    <!-- بدنه اصلی + کشوی بازرس ایستگاه -->
+    <div class="flex-1 flex overflow-hidden relative">
+
+      <!-- تب ۱: شبکه سیستم‌ها و کنسول‌ها (با گرید هوشمند auto-fill و حداقل عرض 248px برای هر کارت) -->
+      <main id="tab-computers" class="flex-1 p-4 sm:p-5 overflow-y-auto min-w-0">
+        <div id="pc-grid" class="stations-auto-grid"></div>
+      </main>
+
+      <!-- تب ۲: مدیریت پیشرفته اکانت‌ها -->
+      <main id="tab-members" class="flex-1 p-4 sm:p-5 overflow-y-auto hidden min-w-0">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-white">مدیریت حساب‌های کاربری اسمارت‌لانچ</h2>
+            <p class="text-xs text-slate-400">امکان انتخاب چندتایی کاربران و کم/زیاد کردن زمان و موجودی با مقدار دلخواه</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="selectAllMembers()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-cyan-300 border border-cyber-border">انتخاب همه کاربران</button>
+            <button onclick="openMemberModal()" class="px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1.5">
+              <i data-lucide="user-plus" class="w-4 h-4"></i> ساخت اکانت جدید
+            </button>
+          </div>
+        </div>
+
+        <!-- نوار کنترل گروهی اکانت‌ها -->
+        <div class="bg-cyber-panel border border-cyber-border rounded-2xl p-4 mb-5 flex flex-wrap items-center justify-between gap-4">
+          <div class="flex items-center gap-2 text-xs">
+            <i data-lucide="sliders" class="w-4 h-4 text-cyan-400"></i>
+            <span>کاربران انتخاب‌شده:</span>
+            <span id="selected-members-count" class="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold mono">0</span>
+            <span class="text-slate-400">نفر</span>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <label class="text-xs text-slate-400">زمان دلخواه (دقیقه):</label>
+            <input id="member-custom-mins" type="number" value="60" class="w-20 bg-slate-950 border border-cyber-border rounded-lg px-2 py-1.5 text-xs text-white mono text-center" />
+            <button onclick="adjustSelectedMembersTime(1)" class="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-bold border border-emerald-500/30 whitespace-nowrap">+ افزودن</button>
+            <button onclick="adjustSelectedMembersTime(-1)" class="px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-bold border border-rose-500/30 whitespace-nowrap">- کسر</button>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <label class="text-xs text-slate-400">مبلغ دلخواه (تومان):</label>
+            <input id="member-custom-cash" type="number" step="10000" value="100000" class="w-28 bg-slate-950 border border-cyber-border rounded-lg px-2 py-1.5 text-xs text-white mono text-center" />
+            <button onclick="adjustSelectedMembersBalance(1)" class="px-3 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-bold border border-cyan-500/30 whitespace-nowrap">+ شارژ</button>
+            <button onclick="adjustSelectedMembersBalance(-1)" class="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold border border-amber-500/30 whitespace-nowrap">- کسر</button>
+          </div>
+        </div>
+
+        <div class="bg-cyber-panel border border-cyber-border rounded-2xl overflow-x-auto">
+          <table class="w-full text-right border-collapse min-w-[740px]">
+            <thead>
+              <tr class="border-b border-cyber-border text-[11px] text-slate-400 bg-slate-900/60">
+                <th class="py-3 px-4 w-10">انتخاب</th>
+                <th class="py-3 px-4">نام کاربری</th>
+                <th class="py-3 px-4">سطح کاربری</th>
+                <th class="py-3 px-4">وضعیت حساب</th>
+                <th class="py-3 px-4">موجودی کیف پول</th>
+                <th class="py-3 px-4">زمان ذخیره شده</th>
+                <th class="py-3 px-4">ایستگاه فعال</th>
+                <th class="py-3 px-4 text-left">عملیات سریع و دلخواه</th>
+              </tr>
+            </thead>
+            <tbody id="members-tbody" class="divide-y divide-cyber-border text-xs"></tbody>
+          </table>
+        </div>
+      </main>
+
+      <!-- تب ۳: بوفه و فروش (POS) -->
+      <main id="tab-pos" class="flex-1 p-4 sm:p-5 overflow-y-auto hidden min-w-0">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-white">بوفه، خدمات و پکیج‌های تایم</h2>
+            <p class="text-xs text-slate-400">ثبت سفارش مستقیم روی سیستم/کنسول بازیکن یا فروش نقدی</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400">ثبت برای ایستگاه:</span>
+            <select id="pos-target-pc" class="bg-slate-900 border border-cyber-border rounded-xl px-3 py-1.5 text-xs text-white"></select>
+          </div>
+        </div>
+        <div id="pos-grid" class="stations-auto-grid"></div>
+      </main>
+
+      <!-- تب ۴: کنسول دستورات خام TCP -->
+      <main id="tab-api" class="flex-1 p-4 sm:p-5 overflow-y-auto hidden flex flex-col gap-4 min-w-0">
+        <div class="bg-cyber-panel border border-cyber-border rounded-2xl p-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <h2 class="text-sm font-bold text-white flex items-center gap-2">
+              <i data-lucide="terminal" class="w-4 h-4 text-cyan-400"></i> ترمینال مستقیم سوکت اسمارت‌لانچ (پورت 7831)
+            </h2>
+            <span class="text-[11px] mono text-emerald-400" id="api-auth-indicator">Operator: mk_supervisor (Custom Auth)</span>
+          </div>
+          <p class="text-xs text-slate-400 mb-3">
+            تمامی عملیات‌های شما در رابط کاربری به همراه احراز هویت اختصاصی اپراتور (بدون استفاده از نام کاربری پیش‌فرض admin) در این کنسول ثبت و به پورت 7831 ارسال می‌شوند.
+          </p>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <input id="raw-cmd-input" type="text" value="ComputerLogin=PC-04&User=Kaviri_X&Time=90" class="flex-1 bg-slate-950 border border-cyber-border rounded-xl px-3 py-2 text-xs mono text-cyan-300 focus:outline-none focus:border-cyan-400" />
+            <div class="flex gap-2">
+              <button onclick="sendRawCommandInput()" class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs whitespace-nowrap">ارسال دستور</button>
+              <button onclick="clearApiLog()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs whitespace-nowrap">پاک‌سازی</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="api-log-box" class="flex-1 bg-slate-950 border border-cyber-border rounded-2xl p-4 mono text-xs overflow-y-auto space-y-1.5 min-h-[300px]"></div>
+      </main>
+
+      <!-- کشوی بازرس ایستگاه (Station Inspector) در سمت چپ -->
+      <aside id="inspector-drawer" class="fixed xl:static inset-y-0 left-0 z-40 w-80 sm:w-[340px] bg-cyber-panel border-r border-cyber-border p-4 flex flex-col justify-between shrink-0 overflow-y-auto transform -translate-x-full xl:translate-x-0 transition-transform duration-200">
+        <div>
+          <div class="flex items-center justify-between xl:hidden pb-3 mb-3 border-b border-cyber-border">
+            <span class="text-xs font-bold text-cyan-400">پنل کنترل ایستگاه انتخاب‌شده</span>
+            <button onclick="toggleInspector(false)" class="text-slate-400 hover:text-white">
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <div id="inspector-content"></div>
+        </div>
+
+        <!-- آخرین پکت ارسالی -->
+        <div class="pt-3 mt-3 border-t border-cyber-border">
+          <div class="flex items-center justify-between text-[11px] text-slate-400 mb-1.5">
+            <span class="font-bold">آخرین دستور ارسالی (TCP 7831)</span>
+            <button onclick="switchTab('api')" class="text-cyan-400 hover:underline">مشاهده کامل</button>
+          </div>
+          <div id="mini-api-feed" class="bg-slate-950 border border-cyber-border rounded-xl p-2.5 mono text-[11px] text-cyan-300 truncate">
+            [READY] Custom Admin Auth Active
+          </div>
+        </div>
+      </aside>
+
+    </div>
+  </div>
+
+  <!-- مودال تنظیمات سرور و تغییر نام کاربری/رمز عبور اختصاصی ادمین -->
+  <div id="settings-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-cyber-panel border border-cyber-border rounded-2xl w-full max-w-md p-6 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="shield-alert" class="w-5 h-5 text-cyan-400"></i> تنظیمات اتصال و اعتبارسنجی اپراتور
+        </h3>
+        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-200 mb-4 leading-relaxed">
+        ⚠️ <b>امنیت سرور:</b> اکانت پیش‌فرض <code class="mono">admin</code> در سرور غیرفعال شده است. لطفاً نام کاربری و کلید امنیتی اختصاصی مدیر سیستم را وارد نمایید.
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1">آدرس WebSocket پل ارتباطی (Node.js Bridge)</label>
+          <input id="cfg-ws-url" type="text" value="ws://127.0.0.1:8080" class="w-full bg-slate-900 border border-cyber-border rounded-xl px-3 py-2 mono text-white" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">IP سرور اسمارت‌لانچ</label>
+            <input id="cfg-sl-ip" type="text" value="127.0.0.1" class="w-full bg-slate-900 border border-cyber-border rounded-xl px-3 py-2 mono text-white" />
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">پورت TCP API</label>
+            <input id="cfg-sl-port" type="number" value="7831" class="w-full bg-slate-900 border border-cyber-border rounded-xl px-3 py-2 mono text-white" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 pt-1">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">نام کاربری مدیر (غیر از admin)</label>
+            <input id="cfg-sl-user" type="text" value="mk_supervisor" placeholder="مثال: cafe_root" class="w-full bg-slate-950 border border-cyan-500/40 rounded-xl px-3 py-2 mono text-cyan-300" />
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">رمز عبور اختصاصی API</label>
+            <input id="cfg-sl-pass" type="password" value="SL#9842!Kaviri" class="w-full bg-slate-950 border border-cyan-500/40 rounded-xl px-3 py-2 mono text-cyan-300" />
+          </div>
+        </div>
+        <div id="auth-error-msg" class="hidden text-rose-400 text-[11px] font-semibold pt-1"></div>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-6">
+        <button onclick="closeSettingsModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-xs text-slate-300">انصراف</button>
+        <button onclick="saveAndConnectBridge()" class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs">ذخیره و اتصال مجدد</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- مودال ویرایش/ایجاد کاربر با مقادیر دلخواه -->
+  <div id="member-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-cyber-panel border border-cyber-border rounded-2xl w-full max-w-md p-6 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="member-modal-title" class="text-base font-bold text-white">ساخت / ویرایش حساب کاربری</h3>
+        <button onclick="closeMemberModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <input type="hidden" id="edit-member-index" value="-1" />
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1">نام کاربری (Username)</label>
+          <input id="m-username" type="text" placeholder="مثال: Reza_Gamer" class="w-full bg-slate-900 border border-cyber-border rounded-xl px-3 py-2 mono text-white" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">گروه کاربری / تعرفه</label>
+            <select id="m-group" class="w-full bg-slate-900 border border-cyber-border rounded-xl px-3 py-2 text-white">
+              <option value="کاربر عادی">کاربر عادی</option>
+              <option value="VIP طلایی">VIP طلایی</option>
+              <option value="تیم ई-اسپورت">تیم ई-اسپورت</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">وضعیت اکانت</label>
+            <select id="m-status" class="w-full bg-slate-900 border border-cyber-border rounded-xl px-3 py-2 text-white">
+              <option value="active">فعال (مجاز به ورود)</option>
+              <option value="locked">مسدود / قفل شده</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">موجودی کیف پول (تومان)</label>
+            <input id="m-balance" type="number" step="5000" value="150000" class="w-full bg-slate-900 border border-cyber-border rounded-xl px-3 py-2 mono text-emerald-400" />
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">زمان ذخیره (دقیقه)</label>
+            <input id="m-time" type="number" value="120" class="w-full bg-slate-900 border border-cyber-border rounded-xl px-3 py-2 mono text-cyan-300" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">رمز عبور یا پین کد کاربر</label>
+          <input id="m-pass" type="text" value="4820" class="w-full bg-slate-900 border border-cyber-border rounded-xl px-3 py-2 mono text-white" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-6">
+        <button onclick="closeMemberModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-xs text-slate-300">انصراف</button>
+        <button onclick="saveMemberModal()" class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs">ثبت در سرور</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- تعرفه‌ها و تنظیمات پایه ---
+    const CONSOLE_BASE_RATE = 120000; // پایه کنسول: ۱۲۰,۰۰۰ تومان
+    const CONSOLE_EXTRA_CONTROLLER_RATE = 40000; // هر دسته اضافه: ۴۰,۰۰۰ تومان
+    const PC_PRO_RATE = 60000;
+    const PC_VIP_RATE = 90000;
+
+    let adminCredentials = {
+      username: 'mk_supervisor',
+      passwordHash: 'SL#9842!Kaviri'
+    };
+
+    // --- لیست ایستگاه‌ها ---
+    const stations = [
+      { id: 'PC-01', number: 1, type: 'pc', zone: 'Pro Arena', zoneFa: 'سالن ई-اسپورت', status: 'busy', locked: false, user: 'Kaviri_X', game: 'Counter-Strike 2', timeLeftSec: 5240, baseRate: PC_PRO_RATE, extraControllers: 0, spec: 'RTX 4080 / 240Hz' },
+      { id: 'PC-02', number: 2, type: 'pc', zone: 'Pro Arena', zoneFa: 'سالن ई-اسپورت', status: 'busy', locked: false, user: 'NyxValkyrie', game: 'Valorant', timeLeftSec: 3110, baseRate: PC_PRO_RATE, extraControllers: 0, spec: 'RTX 4080 / 240Hz' },
+      { id: 'PC-03', number: 3, type: 'pc', zone: 'Pro Arena', zoneFa: 'سالن ई-اسپورت', status: 'busy', locked: false, user: 'مهمان (PC-03)', game: 'Smartlaunch Shell', timeLeftSec: 2665, baseRate: PC_PRO_RATE, extraControllers: 0, spec: 'RTX 4080 / 240Hz' },
+      { id: 'PC-04', number: 4, type: 'pc', zone: 'Pro Arena', zoneFa: 'سالن ई-اسپورت', status: 'free', locked: false, user: null, game: null, timeLeftSec: 0, baseRate: PC_PRO_RATE, extraControllers: 0, spec: 'RTX 4080 / 240Hz' },
+      { id: 'PC-05', number: 5, type: 'pc', zone: 'Pro Arena', zoneFa: 'سالن ई-اسپورت', status: 'busy', locked: false, user: 'ZeroCool99', game: 'Dota 2', timeLeftSec: 695, baseRate: PC_PRO_RATE, extraControllers: 0, spec: 'RTX 4080 / 240Hz' },
+      { id: 'PC-06', number: 6, type: 'pc', zone: 'Pro Arena', zoneFa: 'سالن ई-اسپورت', status: 'busy', locked: false, user: 'ApexPredator', game: 'Apex Legends', timeLeftSec: 7405, baseRate: PC_PRO_RATE, extraControllers: 0, spec: 'RTX 4080 / 240Hz' },
+      { id: 'PC-07', number: 7, type: 'pc', zone: 'Pro Arena', zoneFa: 'سالن ई-اسپورت', status: 'free', locked: false, user: null, game: null, timeLeftSec: 0, baseRate: PC_PRO_RATE, extraControllers: 0, spec: 'RTX 4080 / 240Hz' },
+      { id: 'PC-08', number: 8, type: 'pc', zone: 'Pro Arena', zoneFa: 'سالن ई-اسپورت', status: 'busy', locked: false, user: 'مهمان #۱۴', game: 'League of Legends', timeLeftSec: 1855, baseRate: PC_PRO_RATE, extraControllers: 0, spec: 'RTX 4080 / 240Hz' },
+      { id: 'PC-09', number: 9, type: 'pc', zone: 'Pro Arena', zoneFa: 'سالن ई-اسپورت', status: 'offline', locked: false, user: null, game: null, timeLeftSec: 0, baseRate: PC_PRO_RATE, extraControllers: 0, spec: 'RTX 4080 / 240Hz' },
+      { id: 'PC-10', number: 10, type: 'pc', zone: 'Pro Arena', zoneFa: 'سالن ई-اسپورت', status: 'free', locked: false, user: null, game: null, timeLeftSec: 0, baseRate: PC_PRO_RATE, extraControllers: 0, spec: 'RTX 4080 / 240Hz' },
+      { id: 'VIP-01', number: 11, type: 'pc', zone: 'VIP Bootcamp', zoneFa: 'VIP بوت‌کمپ', status: 'busy', locked: false, user: 'TeamLiquid_A', game: 'Counter-Strike 2', timeLeftSec: 10315, baseRate: PC_VIP_RATE, extraControllers: 0, spec: 'RTX 4090 / 360Hz' },
+      { id: 'VIP-02', number: 12, type: 'pc', zone: 'VIP Bootcamp', zoneFa: 'VIP بوت‌کمپ', status: 'busy', locked: false, user: 'TeamLiquid_B', game: 'Counter-Strike 2', timeLeftSec: 10315, baseRate: PC_VIP_RATE, extraControllers: 0, spec: 'RTX 4090 / 360Hz' },
+      { id: 'VIP-03', number: 13, type: 'pc', zone: 'VIP Bootcamp', zoneFa: 'VIP بوت‌کمپ', status: 'busy', locked: false, user: 'TeamLiquid_C', game: 'Counter-Strike 2', timeLeftSec: 10315, baseRate: PC_VIP_RATE, extraControllers: 0, spec: 'RTX 4090 / 360Hz' },
+      { id: 'VIP-04', number: 14, type: 'pc', zone: 'VIP Bootcamp', zoneFa: 'VIP بوت‌کمپ', status: 'free', locked: false, user: null, game: null, timeLeftSec: 0, baseRate: PC_VIP_RATE, extraControllers: 0, spec: 'RTX 4090 / 360Hz' },
+      { id: 'VIP-05', number: 15, type: 'pc', zone: 'VIP Bootcamp', zoneFa: 'VIP بوت‌کمپ', status: 'free', locked: false, user: null, game: null, timeLeftSec: 0, baseRate: PC_VIP_RATE, extraControllers: 0, spec: 'RTX 4090 / 360Hz' },
+      { id: 'VIP-06', number: 16, type: 'pc', zone: 'VIP Bootcamp', zoneFa: 'VIP بوت‌کمپ', status: 'busy', locked: false, user: 'ShadowBlade', game: 'Monster Hunter: World', timeLeftSec: 4510, baseRate: PC_VIP_RATE, extraControllers: 0, spec: 'RTX 4090 / 360Hz' },
+      { id: 'PS5-01', number: 17, type: 'console', zone: 'Console Lounge', zoneFa: 'سالن کنسول PS5', status: 'busy', locked: false, user: 'مهمان کنسول ۱', game: 'EA Sports FC 26', timeLeftSec: 2650, baseRate: CONSOLE_BASE_RATE, extraControllers: 2, spec: 'PS5 Pro + 65" OLED' },
+      { id: 'PS5-02', number: 18, type: 'console', zone: 'Console Lounge', zoneFa: 'سالن کنسول PS5', status: 'free', locked: false, user: null, game: null, timeLeftSec: 0, baseRate: CONSOLE_BASE_RATE, extraControllers: 0, spec: 'PS5 Pro + 65" OLED' },
+      { id: 'PS5-03', number: 19, type: 'console', zone: 'Console Lounge', zoneFa: 'سالن کنسول PS5', status: 'busy', locked: false, user: 'TekkenKing', game: 'Tekken 8', timeLeftSec: 630, baseRate: CONSOLE_BASE_RATE, extraControllers: 1, spec: 'PS5 Pro + 65" OLED' },
+      { id: 'PS5-04', number: 20, type: 'console', zone: 'Console Lounge', zoneFa: 'سالن کنسول PS5', status: 'free', locked: false, user: null, game: null, timeLeftSec: 0, baseRate: CONSOLE_BASE_RATE, extraControllers: 0, spec: 'PS5 Pro + 65" OLED' }
+    ];
+
+    const members = [
+      { username: 'Kaviri_X', group: 'VIP طلایی', status: 'active', balance: 480000, timeMin: 310, activePc: 'PC-01' },
+      { username: 'NyxValkyrie', group: 'کاربر عادی', status: 'active', balance: 190000, timeMin: 95, activePc: 'PC-02' },
+      { username: 'ShadowBlade', group: 'VIP طلایی', status: 'active', balance: 350000, timeMin: 180, activePc: 'VIP-06' },
+      { username: 'ZeroCool99', group: 'کاربر عادی', status: 'active', balance: 45000, timeMin: 14, activePc: 'PC-05' },
+      { username: 'ProSniper_IR', group: 'تیم ई-اسپورت', status: 'active', balance: 820000, timeMin: 480, activePc: '-' },
+      { username: 'CyberSamurai', group: 'کاربر عادی', status: 'locked', balance: 0, timeMin: 0, activePc: '-' }
+    ];
+
+    const posItems = [
+      { name: 'پکیج ۱ ساعت PC ई-اسپورت', category: 'پکیج زمان', price: 60000, minutes: 60 },
+      { name: 'پکیج ۳ ساعت VIP بوت‌کمپ', category: 'پکیج زمان', price: 240000, minutes: 180 },
+      { name: 'پکیج ۱ ساعت کنسول PS5 (پایه)', category: 'پکیج کنسول', price: 120000, minutes: 60 },
+      { name: 'دسته اضافه کنسول (۱ ساعت)', category: 'پکیج کنسول', price: 40000, minutes: 0 },
+      { name: 'انرژی‌زا ردبول (۲۵۰ میلی)', category: 'نوشیدنی سرد', price: 95000, minutes: 0 },
+      { name: 'مانستر اولترا سفید', category: 'نوشیدنی سرد', price: 110000, minutes: 0 },
+      { name: 'آیس لاته دبل اسپرسو', category: 'کافی‌شاپ', price: 85000, minutes: 0 },
+      { name: 'نودل تند کره‌ای + پنیر', category: 'غذای گرم', price: 145000, minutes: 0 }
+    ];
+
+    let currentZone = 'ALL';
+    let selectedStationId = 'PC-03';
+    let selectedStationSet = new Set();
+    let selectedMemberSet = new Set();
+    let shiftRevenue = 2750000;
+    let ws = null;
+
+    function formatToman(num) {
+      return Number(num || 0).toLocaleString('fa-IR') + ' تومان';
+    }
+
+    function formatNumberFa(num) {
+      return Number(num || 0).toLocaleString('fa-IR');
+    }
+
+    function formatDuration(sec) {
+      if (!sec || sec <= 0) return '00:00:00';
+      const h = Math.floor(sec / 3600).toString().padStart(2, '0');
+      const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+      const s = Math.floor(sec % 60).toString().padStart(2, '0');
+      return `${h}:${m}:${s}`;
+    }
+
+    function getStationHourlyRate(st) {
+      if (st.type === 'console') {
+        return CONSOLE_BASE_RATE + (st.extraControllers || 0) * CONSOLE_EXTRA_CONTROLLER_RATE;
+      }
+      return st.baseRate || PC_PRO_RATE;
+    }
+
+    function toggleSidebar(open) {
+      const sb = document.getElementById('sidebar-drawer');
+      const bd = document.getElementById('mobile-backdrop');
+      if (open) {
+        sb.classList.remove('translate-x-full');
+        bd.classList.remove('hidden');
+      } else {
+        sb.classList.add('translate-x-full');
+        bd.classList.add('hidden');
+      }
+    }
+
+    function toggleInspector(open) {
+      const ins = document.getElementById('inspector-drawer');
+      const bd = document.getElementById('mobile-backdrop');
+      if (open) {
+        ins.classList.remove('-translate-x-full');
+        bd.classList.remove('hidden');
+      } else {
+        ins.classList.add('-translate-x-full');
+        bd.classList.add('hidden');
+      }
+    }
+
+    function closeAllDrawers() {
+      toggleSidebar(false);
+      toggleInspector(false);
+    }
+
+    function sendSmartlaunchCommand(cmdString, description = '') {
+      const timestamp = new Date().toLocaleTimeString('fa-IR');
+      const logBox = document.getElementById('api-log-box');
+      const miniFeed = document.getElementById('mini-api-feed');
+      const fullPayload = `AuthUser=${adminCredentials.username}&${cmdString}`;
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'SMARTLAUNCH_CMD',
+          operator: adminCredentials.username,
+          command: fullPayload
+        }));
+      }
+
+      const line = document.createElement('div');
+      line.className = 'flex flex-wrap items-center justify-between gap-2 py-1.5 px-2.5 rounded-lg bg-slate-900/90 border border-slate-800';
+      line.innerHTML = `
+        <div class="mono text-[11px]">
+          <span class="text-slate-500">[${timestamp}]</span>
+          <span class="text-emerald-400 font-semibold ml-1">TX &rarr; 7831:</span>
+          <span class="text-cyan-300 ml-1">${fullPayload}</span>
+        </div>
+        <span class="text-[11px] text-slate-400">${description}</span>
+      `;
+      logBox.prepend(line);
+      miniFeed.textContent = `TX -> ${fullPayload}`;
+    }
+
+    // --- رندر کارت‌ها با هدر بازطراحی‌شده (ضد شکستن و ضد بیرون‌زدگی بج‌ها) ---
+    function renderStations() {
+      const grid = document.getElementById('pc-grid');
+      const query = document.getElementById('search-input').value.trim().toLowerCase();
+      grid.innerHTML = '';
+
+      let activeCount = 0;
+      let freeCount = 0;
+
+      stations.forEach(st => {
+        if (st.status === 'busy') activeCount++;
+        if (st.status === 'free') freeCount++;
+
+        const matchesZone = currentZone === 'ALL' || st.zone === currentZone;
+        const matchesSearch = !query ||
+          st.id.toLowerCase().includes(query) ||
+          (st.user && st.user.toLowerCase().includes(query)) ||
+          (st.game && st.game.toLowerCase().includes(query));
+
+        if (!matchesZone || !matchesSearch) return;
+
+        const isLowTime = st.status === 'busy' && st.timeLeftSec < 900;
+        const isChecked = selectedStationSet.has(st.id);
+        const hourlyRate = getStationHourlyRate(st);
+
+        let badgeClass = 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30';
+        let statusDot = 'bg-cyan-400';
+        let statusText = 'آزاد';
+
+        if (st.locked) {
+          badgeClass = 'bg-rose-500/20 text-rose-300 border-rose-500/40';
+          statusDot = 'bg-rose-400';
+          statusText = 'قفل اپراتور';
+        } else if (st.status === 'busy') {
+          if (isLowTime) {
+            badgeClass = 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+            statusDot = 'bg-amber-400 animate-ping';
+            statusText = 'رو به اتمام';
+          } else {
+            badgeClass = 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
+            statusDot = 'bg-emerald-400';
+            statusText = 'در حال بازی';
+          }
+        } else if (st.status === 'offline') {
+          badgeClass = 'bg-slate-800 text-slate-400 border-slate-700';
+          statusDot = 'bg-slate-500';
+          statusText = 'خاموش';
+        }
+
+        const card = document.createElement('div');
+        card.onclick = (e) => {
+          if (e.target.type === 'checkbox') return;
+          selectedStationId = st.id;
+          renderStations();
+          renderInspector();
+        };
+
+        card.className = `pc-card cursor-pointer rounded-2xl bg-cyber-card border border-cyber-border p-3.5 flex flex-col justify-between min-h-[178px] overflow-hidden ${selectedStationId === st.id ? 'pc-active-inspect' : ''} ${isChecked ? 'pc-multi-checked' : ''}`;
+
+        card.innerHTML = `
+          <div>
+            <!-- ردیف اول هدر: فقط چک‌باکس + کد سیستم + بج وضعیت با whitespace-nowrap -->
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleStationSelect('${st.id}', this.checked)" class="w-4 h-4 rounded accent-cyan-400 cursor-pointer shrink-0" title="انتخاب برای عملیات گروهی" />
+                <span class="font-extrabold text-base text-white mono truncate">${st.id}</span>
+              </div>
+              <span class="text-[10px] px-2.5 py-0.5 rounded-full border font-bold inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 ${badgeClass}">
+                <span class="w-1.5 h-1.5 rounded-full shrink-0 ${statusDot}"></span>
+                <span>${statusText}</span>
+              </span>
+            </div>
+
+            <!-- ردیف دوم: نام سالن بدون فشردگی -->
+            <div class="text-[11px] text-slate-400 mt-1 pr-6 truncate">${st.zoneFa}</div>
+
+            <!-- بدنه اطلاعات کاربر یا سخت‌افزار -->
+            ${st.status === 'busy' ? `
+              <div class="text-xs font-bold text-white truncate flex items-center gap-1.5 mt-2.5">
+                <i data-lucide="user" class="w-3.5 h-3.5 text-cyan-400 shrink-0"></i>
+                <span class="truncate">${st.user}</span>
+              </div>
+              <div class="text-[11px] text-slate-300 truncate flex items-center gap-1.5 mt-1">
+                <i data-lucide="gamepad-2" class="w-3.5 h-3.5 text-purple-400 shrink-0"></i>
+                <span class="truncate mono">${st.game || 'Smartlaunch Shell'}</span>
+              </div>
+            ` : st.status === 'free' ? `
+              <div class="text-xs text-slate-300 mt-2.5">آماده ورود کاربر</div>
+              <div class="text-[11px] text-slate-500 mt-1 mono truncate">${st.spec}</div>
+            ` : `
+              <div class="text-xs text-slate-500 mt-2.5">عدم پاسخ در پورت 7831</div>
+              <div class="text-[11px] text-slate-600 mt-1 truncate">نیاز به ارسال پکت WOL</div>
+            `}
+
+            <!-- تعرفه ساعتی / دسته اضافه کنسول -->
+            ${st.type === 'console' ? `
+              <div class="mt-2.5 flex items-center justify-between gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-200">
+                <span class="whitespace-nowrap">دسته اضافه: <b>${formatNumberFa(st.extraControllers)}</b></span>
+                <span class="font-bold text-amber-300 whitespace-nowrap">ساعتی ${formatNumberFa(hourlyRate / 1000)} هزار</span>
+              </div>
+            ` : `
+              <div class="mt-2.5 flex items-center justify-between text-[11px] text-slate-400">
+                <span>تعرفه ساعتی:</span>
+                <span class="text-slate-200 font-semibold whitespace-nowrap">${formatNumberFa(hourlyRate)} تومان</span>
+              </div>
+            `}
+          </div>
+
+          <!-- فوتر زمان باقی‌مانده -->
+          <div class="pt-2.5 mt-2.5 border-t border-slate-800/90 flex items-center justify-between gap-2">
+            <span class="text-[11px] text-slate-400 whitespace-nowrap">زمان باقی‌مانده:</span>
+            <span id="timer-${st.id}" class="mono text-xs font-bold ${isLowTime ? 'text-amber-400' : st.status === 'busy' ? 'text-emerald-400' : 'text-slate-500'}">
+              ${formatDuration(st.timeLeftSec)}
+            </span>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+
+      document.getElementById('kpi-active').textContent = `${activeCount} / ${stations.length}`;
+      document.getElementById('kpi-free').textContent = freeCount;
+      document.getElementById('kpi-revenue').textContent = formatToman(shiftRevenue);
+      updateBulkBarUI();
+      lucide.createIcons();
+    }
+
+    function toggleStationSelect(id, checked) {
+      if (checked) selectedStationSet.add(id);
+      else selectedStationSet.delete(id);
+      renderStations();
+    }
+
+    function selectAllVisible() {
+      const query = document.getElementById('search-input').value.trim().toLowerCase();
+      stations.forEach(st => {
+        const matchesZone = currentZone === 'ALL' || st.zone === currentZone;
+        const matchesSearch = !query ||
+          st.id.toLowerCase().includes(query) ||
+          (st.user && st.user.toLowerCase().includes(query)) ||
+          (st.game && st.game.toLowerCase().includes(query));
+        if (matchesZone && matchesSearch) selectedStationSet.add(st.id);
+      });
+      renderStations();
+    }
+
+    function clearMultiSelect() {
+      selectedStationSet.clear();
+      renderStations();
+    }
+
+    function updateBulkBarUI() {
+      const bar = document.getElementById('bulk-action-bar');
+      const badge = document.getElementById('bulk-count-badge');
+      badge.textContent = selectedStationSet.size;
+      if (selectedStationSet.size > 0) {
+        bar.classList.remove('hidden');
+        bar.classList.add('flex');
+      } else {
+        bar.classList.add('hidden');
+        bar.classList.remove('flex');
+      }
+    }
+
+    function bulkAdjustTime(direction) {
+      const mins = parseInt(document.getElementById('bulk-custom-mins').value || '0', 10);
+      if (!mins || mins <= 0) return;
+      const deltaSec = mins * 60 * direction;
+      const targets = Array.from(selectedStationSet);
+
+      targets.forEach(id => {
+        const st = stations.find(s => s.id === id);
+        if (!st) return;
+        if (st.status !== 'busy' && direction > 0) {
+          st.status = 'busy';
+          st.user = st.user || `مهمان (${st.id})`;
+          st.game = st.type === 'console' ? 'EA Sports FC 26' : 'Smartlaunch Shell';
+        }
+        st.timeLeftSec = Math.max(0, (st.timeLeftSec || 0) + deltaSec);
+        if (direction > 0) {
+          const price = Math.round((getStationHourlyRate(st) / 60) * mins);
+          shiftRevenue += price;
+        }
+        if (st.timeLeftSec === 0) {
+          st.status = 'free';
+          st.user = null;
+          st.game = null;
+        }
+      });
+
+      sendSmartlaunchCommand(
+        `BatchAdjustTime=${targets.join(',')}&DeltaMinutes=${mins * direction}`,
+        `تغییر زمان گروهی (${mins * direction} دقیقه) برای ${targets.length} ایستگاه`
+      );
+      renderStations();
+      renderInspector();
+    }
+
+    function bulkLoginWalkIn() {
+      const mins = parseInt(document.getElementById('bulk-custom-mins').value || '60', 10);
+      const targets = Array.from(selectedStationSet);
+      targets.forEach(id => {
+        const st = stations.find(s => s.id === id);
+        if (!st) return;
+        st.status = 'busy';
+        st.user = `مهمان گروهی (${st.id})`;
+        st.game = st.type === 'console' ? 'EA Sports FC 26' : 'Counter-Strike 2';
+        st.timeLeftSec = mins * 60;
+        shiftRevenue += Math.round((getStationHourlyRate(st) / 60) * mins);
+      });
+      sendSmartlaunchCommand(`BatchLogin=${targets.join(',')}&Minutes=${mins}`, `شروع نشست گروهی (${targets.length} ایستگاه)`);
+      renderStations();
+      renderInspector();
+    }
+
+    function bulkSendMessage() {
+      const msg = prompt(`متن پیام برای ارسال به ${selectedStationSet.size} ایستگاه انتخاب‌شده:`, 'لطفاً جهت تمدید زمان به پذیرش مراجعه فرمایید.');
+      if (!msg) return;
+      const targets = Array.from(selectedStationSet);
+      sendSmartlaunchCommand(`BatchSendMessage=${targets.join(',')}&Text=${encodeURIComponent(msg)}`, `ارسال پیام گروهی به ${targets.length} ایستگاه`);
+    }
+
+    function bulkForceLogout() {
+      const targets = Array.from(selectedStationSet);
+      targets.forEach(id => {
+        const st = stations.find(s => s.id === id);
+        if (!st) return;
+        st.status = 'free';
+        st.user = null;
+        st.game = null;
+        st.timeLeftSec = 0;
+      });
+      sendSmartlaunchCommand(`BatchLogout=${targets.join(',')}`, `خروج اجباری گروهی (${targets.length} ایستگاه)`);
+      renderStations();
+      renderInspector();
+    }
+
+    function bulkPowerAction(action) {
+      const targets = Array.from(selectedStationSet);
+      targets.forEach(id => {
+        const st = stations.find(s => s.id === id);
+        if (!st) return;
+        if (action === 'Shutdown') {
+          st.status = 'offline';
+          st.user = null;
+          st.game = null;
+          st.timeLeftSec = 0;
+        } else if (action === 'WakeOnLAN') {
+          if (st.status === 'offline') st.status = 'free';
+        }
+      });
+      sendSmartlaunchCommand(`BatchPower=${targets.join(',')}&Action=${action}`, `دستور ${action} به ${targets.length} ایستگاه`);
+      renderStations();
+      renderInspector();
+    }
+
+    function renderInspector() {
+      const st = stations.find(s => s.id === selectedStationId) || stations[0];
+      const box = document.getElementById('inspector-content');
+      const hourlyRate = getStationHourlyRate(st);
+
+      box.innerHTML = `
+        <div class="flex items-center justify-between pb-3 border-b border-cyber-border">
+          <div>
+            <div class="text-xs text-cyan-400 font-bold">${st.zoneFa}</div>
+            <h3 class="text-xl font-extrabold text-white mono">${st.id} <span class="text-xs font-normal text-slate-400">(#${st.number})</span></h3>
+          </div>
+          <span class="px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap ${st.status === 'busy' ? 'bg-emerald-500/20 text-emerald-300' : st.status === 'free' ? 'bg-cyan-500/20 text-cyan-300' : 'bg-slate-800 text-slate-400'}">
+            ${st.status === 'busy' ? 'فعال' : st.status === 'free' ? 'آزاد' : 'خاموش'}
+          </span>
+        </div>
+
+        <div class="py-3 space-y-2 text-xs border-b border-cyber-border">
+          <div class="flex justify-between gap-2"><span class="text-slate-400 shrink-0">سخت‌افزار:</span><span class="text-slate-200 mono truncate">${st.spec}</span></div>
+          <div class="flex justify-between gap-2"><span class="text-slate-400 shrink-0">کاربر فعال:</span><span class="text-white font-bold truncate">${st.user || 'ندارد'}</span></div>
+          <div class="flex justify-between gap-2"><span class="text-slate-400 shrink-0">برنامه/بازی در حال اجرا:</span><span class="text-purple-300 font-semibold truncate">${st.game || 'صفحه قفل اسمارت‌لانچ'}</span></div>
+          <div class="flex justify-between gap-2"><span class="text-slate-400 shrink-0">نرخ ساعتی فعلی:</span><span class="text-amber-300 font-bold">${formatToman(hourlyRate)}</span></div>
+          <div class="flex justify-between gap-2"><span class="text-slate-400 shrink-0">زمان باقی‌مانده:</span><span id="inspector-timer" class="mono font-bold text-emerald-400 text-sm">${formatDuration(st.timeLeftSec)}</span></div>
+        </div>
+
+        ${st.type === 'console' ? `
+          <div class="py-3 border-b border-cyber-border">
+            <div class="text-xs font-bold text-purple-300 mb-2 flex items-center justify-between">
+              <span>تنظیم تعداد دسته اضافه کنسول</span>
+              <span class="text-[11px] text-slate-400">پایه ۱۲۰ + هر دسته ۴۰</span>
+            </div>
+            <div class="grid grid-cols-4 gap-1.5">
+              ${[0, 1, 2, 3].map(cnt => `
+                <button onclick="setConsoleExtraControllers('${st.id}', ${cnt})" class="py-2 rounded-xl text-xs font-bold border ${st.extraControllers === cnt ? 'bg-purple-500/30 border-purple-400 text-white' : 'bg-slate-900 border-cyber-border text-slate-400 hover:text-white'}">
+                  ${cnt === 0 ? 'پایه (۰)' : `+${formatNumberFa(cnt)} دسته`}
+                  <div class="text-[10px] font-normal text-amber-300 mt-0.5">${formatNumberFa((CONSOLE_BASE_RATE + cnt * CONSOLE_EXTRA_CONTROLLER_RATE)/1000)}هزار</div>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- کم و زیاد کردن زمان و هزینه با مقدار دلخواه -->
+        <div class="py-3 border-b border-cyber-border space-y-2.5">
+          <div class="text-xs font-bold text-slate-300">تغییر زمان و شارژ با مقدار دلخواه</div>
+          <div class="flex items-center gap-1.5">
+            <input id="inspect-custom-mins" type="number" value="45" class="w-16 bg-slate-950 border border-cyber-border rounded-xl px-2 py-2 text-xs text-center text-white mono shrink-0" placeholder="دقیقه" />
+            <button onclick="adjustSingleStationTime('${st.id}', 1)" class="flex-1 py-2 px-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 font-bold text-[11px] whitespace-nowrap">
+              + افزودن زمان
+            </button>
+            <button onclick="adjustSingleStationTime('${st.id}', -1)" class="flex-1 py-2 px-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 font-bold text-[11px] whitespace-nowrap">
+              - کسر زمان
+            </button>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <input id="inspect-custom-cash" type="number" step="10000" value="120000" class="w-24 bg-slate-950 border border-cyber-border rounded-xl px-2 py-2 text-xs text-center text-emerald-300 mono shrink-0" placeholder="تومان" />
+            <button onclick="chargeCustomAmountToStation('${st.id}', 1)" class="flex-1 py-2 px-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 font-bold text-[11px] whitespace-nowrap">
+              + ثبت مبلغ/تایم
+            </button>
+            <button onclick="chargeCustomAmountToStation('${st.id}', -1)" class="py-2 px-2.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-300 font-bold text-[11px] whitespace-nowrap">
+              - کسر
+            </button>
+          </div>
+        </div>
+
+        <!-- دکمه‌های کنترل سیستم و اکانت -->
+        <div class="py-3 space-y-2">
+          <div class="text-[11px] font-bold text-slate-400">کنترل‌های پیشرفته سیستم و کلاینت</div>
+
+          ${st.status === 'free' ? `
+            <button onclick="startQuickSession('${st.id}', 60)" class="w-full py-2.5 px-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2">
+              <i data-lucide="play" class="w-4 h-4"></i> شروع نشست ۱ ساعته (${formatToman(hourlyRate)})
+            </button>
+            <button onclick="startMemberSession('${st.id}')" class="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs flex items-center justify-center gap-2 border border-cyber-border">
+              <i data-lucide="user-check" class="w-4 h-4 text-cyan-400"></i> ورود با اکانت کاربری عضو
+            </button>
+          ` : st.status === 'busy' ? `
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="transferStationPrompt('${st.id}')" class="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cyber-border text-cyan-300 font-semibold text-xs flex items-center justify-center gap-1 whitespace-nowrap">
+                <i data-lucide="arrow-left-right" class="w-3.5 h-3.5 shrink-0"></i> جابجایی ایستگاه
+              </button>
+              <button onclick="toggleLockStation('${st.id}')" class="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cyber-border text-amber-300 font-semibold text-xs flex items-center justify-center gap-1 whitespace-nowrap">
+                <i data-lucide="lock" class="w-3.5 h-3.5 shrink-0"></i> ${st.locked ? 'باز کردن قفل' : 'قفل صفحه و ورودی'}
+              </button>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="messageStation('${st.id}')" class="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cyber-border text-slate-200 text-xs flex items-center justify-center gap-1 whitespace-nowrap">
+                <i data-lucide="message-square" class="w-3.5 h-3.5 text-cyan-400 shrink-0"></i> پیام به بازیکن
+              </button>
+              <button onclick="killActiveGame('${st.id}')" class="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cyber-border text-purple-300 text-xs flex items-center justify-center gap-1 whitespace-nowrap">
+                <i data-lucide="x-octagon" class="w-3.5 h-3.5 shrink-0"></i> بستن بازی فعلی
+              </button>
+            </div>
+            <button onclick="endStationSession('${st.id}')" class="w-full py-2 px-3 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-300 font-bold text-xs flex items-center justify-center gap-2">
+              <i data-lucide="log-out" class="w-4 h-4"></i> بستن نشست و تسویه حساب
+            </button>
+          ` : `
+            <button onclick="wakeStation('${st.id}')" class="w-full py-2.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-xs flex items-center justify-center gap-2">
+              <i data-lucide="zap" class="w-4 h-4"></i> روشن کردن سیستم (Wake-On-LAN)
+            </button>
+          `}
+
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <button onclick="rebootStation('${st.id}')" class="py-1.5 px-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-[11px] border border-cyber-border">
+              ریستارت سیستم
+            </button>
+            <button onclick="shutdownStation('${st.id}')" class="py-1.5 px-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-rose-300 text-[11px] border border-cyber-border">
+              خاموش کردن (Shutdown)
+            </button>
+          </div>
+        </div>
+      `;
+      lucide.createIcons();
+    }
+
+    function setConsoleExtraControllers(id, extraCount) {
+      const st = stations.find(s => s.id === id);
+      if (!st) return;
+      st.extraControllers = extraCount;
+      const newRate = getStationHourlyRate(st);
+      sendSmartlaunchCommand(
+        `ConsoleSetControllers=${st.number}&ExtraControllers=${extraCount}&HourlyRate=${newRate}`,
+        `تنظیم ${extraCount} دسته اضافه برای ${st.id} (ساعتی ${formatToman(newRate)})`
+      );
+      renderStations();
+      renderInspector();
+    }
+
+    function adjustSingleStationTime(id, direction) {
+      const st = stations.find(s => s.id === id);
+      if (!st) return;
+      const mins = parseInt(document.getElementById('inspect-custom-mins').value || '0', 10);
+      if (!mins || mins <= 0) return;
+
+      if (st.status !== 'busy' && direction > 0) {
+        st.status = 'busy';
+        st.user = st.user || `مهمان (${st.id})`;
+        st.game = st.type === 'console' ? 'EA Sports FC 26' : 'Smartlaunch Shell';
+      }
+
+      st.timeLeftSec = Math.max(0, (st.timeLeftSec || 0) + mins * 60 * direction);
+      const costDelta = Math.round((getStationHourlyRate(st) / 60) * mins) * direction;
+      shiftRevenue = Math.max(0, shiftRevenue + costDelta);
+
+      if (st.timeLeftSec === 0) {
+        st.status = 'free';
+        st.user = null;
+        st.game = null;
+      }
+
+      sendSmartlaunchCommand(
+        `StationAdjustTime=${st.number}&DeltaMinutes=${mins * direction}&CostDelta=${costDelta}`,
+        `${direction > 0 ? 'افزودن' : 'کسر'} ${mins} دقیقه روی ${st.id}`
+      );
+      renderStations();
+      renderInspector();
+    }
+
+    function chargeCustomAmountToStation(id, direction) {
+      const st = stations.find(s => s.id === id);
+      if (!st) return;
+      const amount = parseInt(document.getElementById('inspect-custom-cash').value || '0', 10);
+      if (!amount || amount <= 0) return;
+
+      const hourly = getStationHourlyRate(st);
+      const equivalentMins = Math.round((amount / hourly) * 60);
+
+      if (st.status !== 'busy' && direction > 0) {
+        st.status = 'busy';
+        st.user = st.user || `مهمان (${st.id})`;
+        st.game = st.type === 'console' ? 'EA Sports FC 26' : 'Smartlaunch Shell';
+      }
+
+      st.timeLeftSec = Math.max(0, (st.timeLeftSec || 0) + equivalentMins * 60 * direction);
+      shiftRevenue = Math.max(0, shiftRevenue + amount * direction);
+
+      if (st.user) {
+        const mem = members.find(m => m.username === st.user);
+        if (mem) {
+          mem.balance = Math.max(0, mem.balance + amount * direction);
+          mem.timeMin = Math.max(0, mem.timeMin + equivalentMins * direction);
+        }
+      }
+
+      sendSmartlaunchCommand(
+        `StationAdjustBalance=${st.number}&Amount=${amount * direction}&EquivalentMinutes=${equivalentMins * direction}`,
+        `${direction > 0 ? 'شارژ' : 'کسر'} مبلغ ${formatToman(amount)} (معادل ${equivalentMins} دقیقه) روی ${st.id}`
+      );
+      renderStations();
+      renderInspector();
+    }
+
+    function startQuickSession(id, mins) {
+      const st = stations.find(s => s.id === id);
+      if (!st) return;
+      const rate = getStationHourlyRate(st);
+      const cost = Math.round((rate / 60) * mins);
+      st.status = 'busy';
+      st.user = `مهمان #${Math.floor(10 + Math.random() * 89)}`;
+      st.game = st.type === 'console' ? 'EA Sports FC 26' : 'Smartlaunch Client Shell';
+      st.timeLeftSec = mins * 60;
+      shiftRevenue += cost;
+      sendSmartlaunchCommand(`ComputerLogin=${st.number}&User=${encodeURIComponent(st.user)}&Time=${mins}&Rate=${rate}`, `شروع نشست ${mins} دقیقه‌ای در ${st.id}`);
+      renderStations();
+      renderInspector();
+    }
+
+    function startMemberSession(id) {
+      const username = prompt('نام کاربری عضو را وارد کنید:', 'ProSniper_IR');
+      if (!username) return;
+      const st = stations.find(s => s.id === id);
+      st.status = 'busy';
+      st.user = username;
+      st.game = st.type === 'console' ? 'Tekken 8' : 'Counter-Strike 2';
+      st.timeLeftSec = 7200;
+      sendSmartlaunchCommand(`ComputerLogin=${st.number}&User=${encodeURIComponent(username)}`, `ورود کاربر ${username} به ${st.id}`);
+      renderStations();
+      renderInspector();
+    }
+
+    function transferStationPrompt(fromId) {
+      const fromSt = stations.find(s => s.id === fromId);
+      const toId = prompt(`انتقال نشست ${fromSt.user} از ${fromId} به کدام ایستگاه آزاد؟ (مثال: PC-04 یا PS5-02)`, 'PC-04');
+      if (!toId) return;
+      const toSt = stations.find(s => s.id.toUpperCase() === toId.trim().toUpperCase());
+      if (!toSt || toSt.status !== 'free') {
+        alert('ایستگاه مقصد یافت نشد یا در حال حاضر آزاد نیست.');
+        return;
+      }
+      toSt.status = 'busy';
+      toSt.user = fromSt.user;
+      toSt.game = fromSt.game;
+      toSt.timeLeftSec = fromSt.timeLeftSec;
+
+      fromSt.status = 'free';
+      fromSt.user = null;
+      fromSt.game = null;
+      fromSt.timeLeftSec = 0;
+
+      selectedStationId = toSt.id;
+      sendSmartlaunchCommand(`ComputerMoveSession=${fromSt.number}&TargetComputer=${toSt.number}`, `انتقال نشست از ${fromSt.id} به ${toSt.id}`);
+      renderStations();
+      renderInspector();
+    }
+
+    function toggleLockStation(id) {
+      const st = stations.find(s => s.id === id);
+      if (!st) return;
+      st.locked = !st.locked;
+      sendSmartlaunchCommand(`ComputerSetLock=${st.number}&Locked=${st.locked ? 1 : 0}`, `${st.locked ? 'قفل کردن' : 'باز کردن قفل'} ایستگاه ${st.id}`);
+      renderStations();
+      renderInspector();
+    }
+
+    function killActiveGame(id) {
+      const st = stations.find(s => s.id === id);
+      if (!st) return;
+      const oldGame = st.game;
+      st.game = 'Smartlaunch Client Shell';
+      sendSmartlaunchCommand(`ComputerKillProcess=${st.number}&Process=${encodeURIComponent(oldGame || 'Game')}`, `بستن بازی در حال اجرا روی ${st.id}`);
+      renderStations();
+      renderInspector();
+    }
+
+    function messageStation(id) {
+      const st = stations.find(s => s.id === id);
+      const msg = prompt(`ارسال پیام پاپ‌آپ به ${id} (${st.user || 'کلاینت'}):`, 'سفارش بوفه شما آماده تحویل است!');
+      if (!msg) return;
+      sendSmartlaunchCommand(`ComputerSendMessage=${st.number}&Text=${encodeURIComponent(msg)}`, `ارسال پیام به ${st.id}`);
+    }
+
+    function endStationSession(id) {
+      const st = stations.find(s => s.id === id);
+      if (!st) return;
+      sendSmartlaunchCommand(`ComputerLogout=${st.number}`, `پایان نشست ایستگاه ${st.id}`);
+      st.status = 'free';
+      st.locked = false;
+      st.user = null;
+      st.game = null;
+      st.timeLeftSec = 0;
+      renderStations();
+      renderInspector();
+    }
+
+    function wakeStation(id) {
+      const st = stations.find(s => s.id === id);
+      st.status = 'free';
+      sendSmartlaunchCommand(`ComputerTurnOn=${st.number}`, `ارسال پکت WOL به ${st.id}`);
+      renderStations();
+      renderInspector();
+    }
+
+    function rebootStation(id) {
+      const st = stations.find(s => s.id === id);
+      sendSmartlaunchCommand(`ComputerReboot=${st.number}`, `ارسال فرمان ریستارت به ${st.id}`);
+    }
+
+    function shutdownStation(id) {
+      const st = stations.find(s => s.id === id);
+      st.status = 'offline';
+      st.user = null;
+      st.game = null;
+      st.timeLeftSec = 0;
+      sendSmartlaunchCommand(`ComputerShutdown=${st.number}`, `ارسال فرمان خاموش شدن به ${st.id}`);
+      renderStations();
+      renderInspector();
+    }
+
+    // --- مدیریت کاربران ---
+    function renderMembers() {
+      const tbody = document.getElementById('members-tbody');
+      tbody.innerHTML = '';
+      document.getElementById('selected-members-count').textContent = selectedMemberSet.size;
+
+      members.forEach((m, idx) => {
+        const checked = selectedMemberSet.has(m.username);
+        const tr = document.createElement('tr');
+        tr.className = `hover:bg-slate-800/40 ${checked ? 'bg-cyan-500/10' : ''}`;
+        tr.innerHTML = `
+          <td class="py-3 px-4">
+            <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleMemberSelect('${m.username}', this.checked)" class="w-4 h-4 rounded accent-cyan-400 cursor-pointer" />
+          </td>
+          <td class="py-3 px-4 font-bold text-white mono">${m.username}</td>
+          <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-md text-[11px] bg-cyan-500/15 text-cyan-300">${m.group}</span></td>
+          <td class="py-3 px-4">
+            <span class="px-2 py-0.5 rounded-md text-[11px] ${m.status === 'active' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}">
+              ${m.status === 'active' ? 'فعال' : 'مسدود'}
+            </span>
+          </td>
+          <td class="py-3 px-4 font-bold text-emerald-400">${formatToman(m.balance)}</td>
+          <td class="py-3 px-4 text-slate-200">${formatNumberFa(m.timeMin)} دقیقه</td>
+          <td class="py-3 px-4 mono text-xs text-cyan-300">${m.activePc}</td>
+          <td class="py-3 px-4 text-left space-x-1 space-x-reverse">
+            <button onclick="openMemberModal(${idx})" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 font-semibold">ویرایش دلخواه</button>
+            <button onclick="toggleMemberLock(${idx})" class="px-2.5 py-1 rounded-lg bg-slate-800 text-amber-300 hover:bg-slate-700">${m.status === 'active' ? 'مسدودسازی' : 'رفع مسدودی'}</button>
+            <button onclick="resetMemberPass('${m.username}')" class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700">ریست رمز</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function toggleMemberSelect(username, checked) {
+      if (checked) selectedMemberSet.add(username);
+      else selectedMemberSet.delete(username);
+      renderMembers();
+    }
+
+    function selectAllMembers() {
+      if (selectedMemberSet.size === members.length) selectedMemberSet.clear();
+      else members.forEach(m => selectedMemberSet.add(m.username));
+      renderMembers();
+    }
+
+    function adjustSelectedMembersTime(direction) {
+      if (selectedMemberSet.size === 0) {
+        alert('لطفاً ابتدا یک یا چند کاربر را از جدول انتخاب کنید.');
+        return;
+      }
+      const mins = parseInt(document.getElementById('member-custom-mins').value || '0', 10);
+      if (!mins || mins <= 0) return;
+
+      const targets = [];
+      members.forEach(m => {
+        if (selectedMemberSet.has(m.username)) {
+          m.timeMin = Math.max(0, m.timeMin + mins * direction);
+          targets.push(m.username);
+        }
+      });
+
+      sendSmartlaunchCommand(
+        `UserBatchAdjustTime=${targets.join(',')}&DeltaMinutes=${mins * direction}`,
+        `${direction > 0 ? 'افزودن' : 'کسر'} ${mins} دقیقه زمان برای ${targets.length} کاربر`
+      );
+      renderMembers();
+    }
+
+    function adjustSelectedMembersBalance(direction) {
+      if (selectedMemberSet.size === 0) {
+        alert('لطفاً ابتدا یک یا چند کاربر را از جدول انتخاب کنید.');
+        return;
+      }
+      const cash = parseInt(document.getElementById('member-custom-cash').value || '0', 10);
+      if (!cash || cash <= 0) return;
+
+      const targets = [];
+      members.forEach(m => {
+        if (selectedMemberSet.has(m.username)) {
+          m.balance = Math.max(0, m.balance + cash * direction);
+          shiftRevenue = Math.max(0, shiftRevenue + cash * direction);
+          targets.push(m.username);
+        }
+      });
+
+      sendSmartlaunchCommand(
+        `UserBatchAdjustBalance=${targets.join(',')}&DeltaAmount=${cash * direction}`,
+        `${direction > 0 ? 'افزایش' : 'کاهش'} موجودی به مبلغ ${formatToman(cash)} برای ${targets.length} کاربر`
+      );
+      renderMembers();
+      renderStations();
+    }
+
+    function toggleMemberLock(idx) {
+      const m = members[idx];
+      m.status = m.status === 'active' ? 'locked' : 'active';
+      sendSmartlaunchCommand(`UserSetStatus=${m.username}&Status=${m.status}`, `تغییر وضعیت اکانت ${m.username} به ${m.status}`);
+      renderMembers();
+    }
+
+    function resetMemberPass(username) {
+      const newPin = prompt(`پین یا رمز عبور جدید برای ${username} را وارد کنید:`, '5544');
+      if (!newPin) return;
+      sendSmartlaunchCommand(`UserSetPassword=${username}&NewPass=${encodeURIComponent(newPin)}`, `تغییر رمز عبور کاربر ${username}`);
+    }
+
+    function openMemberModal(idx = -1) {
+      document.getElementById('edit-member-index').value = idx;
+      if (idx >= 0) {
+        const m = members[idx];
+        document.getElementById('member-modal-title').textContent = `ویرایش حساب: ${m.username}`;
+        document.getElementById('m-username').value = m.username;
+        document.getElementById('m-group').value = m.group;
+        document.getElementById('m-status').value = m.status;
+        document.getElementById('m-balance').value = m.balance;
+        document.getElementById('m-time').value = m.timeMin;
+      } else {
+        document.getElementById('member-modal-title').textContent = 'ساخت اکانت کاربری جدید';
+        document.getElementById('m-username').value = '';
+        document.getElementById('m-group').value = 'کاربر عادی';
+        document.getElementById('m-status').value = 'active';
+        document.getElementById('m-balance').value = 120000;
+        document.getElementById('m-time').value = 120;
+      }
+      document.getElementById('member-modal').classList.remove('hidden');
+      document.getElementById('member-modal').classList.add('flex');
+    }
+
+    function closeMemberModal() {
+      document.getElementById('member-modal').classList.add('hidden');
+      document.getElementById('member-modal').classList.remove('flex');
+    }
+
+    function saveMemberModal() {
+      const idx = parseInt(document.getElementById('edit-member-index').value, 10);
+      const username = document.getElementById('m-username').value.trim();
+      const group = document.getElementById('m-group').value;
+      const status = document.getElementById('m-status').value;
+      const balance = parseInt(document.getElementById('m-balance').value || '0', 10);
+      const timeMin = parseInt(document.getElementById('m-time').value || '0', 10);
+
+      if (!username) {
+        alert('نام کاربری الزامی است.');
+        return;
+      }
+
+      if (idx >= 0) {
+        members[idx] = { ...members[idx], username, group, status, balance, timeMin };
+        sendSmartlaunchCommand(`UserUpdate=${username}&Group=${encodeURIComponent(group)}&Balance=${balance}&Minutes=${timeMin}&Status=${status}`, `بروزرسانی کامل اکانت ${username}`);
+      } else {
+        members.unshift({ username, group, status, balance, timeMin, activePc: '-' });
+        shiftRevenue += balance;
+        sendSmartlaunchCommand(`UserCreate=${username}&Group=${encodeURIComponent(group)}&Balance=${balance}&Minutes=${timeMin}`, `ساخت اکانت جدید ${username}`);
+      }
+
+      closeMemberModal();
+      renderMembers();
+      renderStations();
+    }
+
+    function renderPos() {
+      const sel = document.getElementById('pos-target-pc');
+      sel.innerHTML = '<option value="WALKIN">فروش نقدی حضوری (بدون سیستم)</option>' +
+        stations.filter(s => s.status === 'busy').map(s => `<option value="${s.id}">${s.id} (${s.user})</option>`).join('');
+
+      const grid = document.getElementById('pos-grid');
+      grid.innerHTML = '';
+      posItems.forEach((item, i) => {
+        const div = document.createElement('div');
+        div.className = 'bg-cyber-panel border border-cyber-border rounded-2xl p-4 flex flex-col justify-between';
+        div.innerHTML = `
+          <div>
+            <span class="text-[10px] text-cyan-400 font-bold">${item.category}</span>
+            <h4 class="font-bold text-white text-sm mt-1">${item.name}</h4>
+          </div>
+          <div class="flex items-center justify-between mt-4 pt-3 border-t border-slate-800">
+            <span class="font-bold text-emerald-400 text-xs">${formatToman(item.price)}</span>
+            <button onclick="sellPosItem(${i})" class="px-3.5 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs">ثبت سفارش</button>
+          </div>
+        `;
+        grid.appendChild(div);
+      });
+    }
+
+    function sellPosItem(idx) {
+      const item = posItems[idx];
+      const target = document.getElementById('pos-target-pc').value;
+      shiftRevenue += item.price;
+
+      if (target !== 'WALKIN' && item.minutes > 0) {
+        const st = stations.find(s => s.id === target);
+        if (st) st.timeLeftSec += item.minutes * 60;
+      }
+      sendSmartlaunchCommand(`POSAddSale=${encodeURIComponent(item.name)}&Target=${target}&Price=${item.price}`, `فروش بوفه: ${item.name}`);
+      renderStations();
+    }
+
+    function switchTab(tab) {
+      ['computers', 'members', 'pos', 'api'].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.add('hidden');
+        const btn = document.getElementById(`nav-${t}`);
+        btn.className = 'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800/60 hover:text-slate-200';
+      });
+      document.getElementById(`tab-${tab}`).classList.remove('hidden');
+      document.getElementById(`nav-${tab}`).className = 'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30';
+      if (tab === 'members') renderMembers();
+      if (tab === 'pos') renderPos();
+      closeAllDrawers();
+    }
+
+    function filterZone(zone) {
+      currentZone = zone;
+      document.querySelectorAll('.zone-btn').forEach(btn => {
+        if (btn.dataset.zone === zone) {
+          btn.className = 'zone-btn w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs bg-slate-800 text-white font-semibold';
+        } else {
+          btn.className = 'zone-btn w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-400 hover:bg-slate-800/50';
+        }
+      });
+      renderStations();
+      closeAllDrawers();
+    }
+
+    function openBroadcastModal() {
+      const msg = prompt('متن پیام همگانی برای تمام سیستم‌ها و کنسول‌های فعال:', 'مسابقه FC 26 تا ۱۵ دقیقه دیگر در سالن کنسول آغاز می‌شود!');
+      if (!msg) return;
+      sendSmartlaunchCommand(`ServerBroadcastMessage=${encodeURIComponent(msg)}`, 'ارسال پیام همگانی به کل سالن');
+    }
+
+    function sendRawCommandInput() {
+      const input = document.getElementById('raw-cmd-input');
+      if (!input.value.trim()) return;
+      sendSmartlaunchCommand(input.value.trim(), 'ارسال دستور دستی');
+    }
+
+    function clearApiLog() {
+      document.getElementById('api-log-box').innerHTML = '';
+    }
+
+    function openSettingsModal() {
+      document.getElementById('auth-error-msg').classList.add('hidden');
+      document.getElementById('settings-modal').classList.remove('hidden');
+      document.getElementById('settings-modal').classList.add('flex');
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settings-modal').classList.add('hidden');
+      document.getElementById('settings-modal').classList.remove('flex');
+    }
+
+    function saveAndConnectBridge() {
+      const wsUrl = document.getElementById('cfg-ws-url').value.trim();
+      const slIp = document.getElementById('cfg-sl-ip').value.trim();
+      const slPort = document.getElementById('cfg-sl-port').value.trim();
+      const slUser = document.getElementById('cfg-sl-user').value.trim();
+      const slPass = document.getElementById('cfg-sl-pass').value.trim();
+      const errBox = document.getElementById('auth-error-msg');
+
+      if (!slUser || slUser.toLowerCase() === 'admin' || slUser.toLowerCase() === 'administrator') {
+        errBox.textContent = 'خطای امنیتی: نام کاربری پیش‌فرض "admin" غیرفعال است. لطفاً نام کاربری اختصاصی خود را وارد کنید.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+      if (!slPass || slPass.length < 6) {
+        errBox.textContent = 'خطای امنیتی: رمز عبور ادمین باید حداقل ۶ کاراکتر باشد.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      adminCredentials.username = slUser;
+      adminCredentials.passwordHash = slPass;
+
+      document.getElementById('active-operator-badge').textContent = slUser;
+      document.getElementById('api-auth-indicator').textContent = `Operator: ${slUser} (Custom Auth)`;
+      document.getElementById('conn-host-display').textContent = `${wsUrl} -> ${slIp}:${slPort}`;
+
+      try {
+        if (ws) ws.close();
+        ws = new WebSocket(wsUrl);
+        ws.onopen = () => {
+          document.getElementById('conn-dot').className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0';
+          document.getElementById('conn-label').textContent = 'متصل به سرور (7831)';
+          sendSmartlaunchCommand(`OperatorHandshake=${encodeURIComponent(slUser)}&SecretKey=***`, 'احراز هویت اختصاصی اپراتور');
+        };
+        ws.onerror = () => {
+          document.getElementById('conn-dot').className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0';
+          document.getElementById('conn-label').textContent = 'شبیه‌ساز فعال (7831)';
+        };
+      } catch (e) {}
+
+      sendSmartlaunchCommand(`OperatorHandshake=${encodeURIComponent(slUser)}&AuthMode=Custom`, `تغییر اپراتور فعال به ${slUser}`);
+      closeSettingsModal();
+    }
+
+    // شمارنده معکوس ۱ ثانیه‌ای بدون بازسازی کامل DOM (برای حفظ فوکوس اینپوت‌ها)
+    setInterval(() => {
+      let stateChanged = false;
+      stations.forEach(st => {
+        if (st.status === 'busy' && st.timeLeftSec > 0) {
+          st.timeLeftSec--;
+          const timerEl = document.getElementById(`timer-${st.id}`);
+          if (timerEl) timerEl.textContent = formatDuration(st.timeLeftSec);
+          if (st.id === selectedStationId) {
+            const insTimer = document.getElementById('inspector-timer');
+            if (insTimer) insTimer.textContent = formatDuration(st.timeLeftSec);
+          }
+          if (st.timeLeftSec === 0) {
+            st.status = 'free';
+            st.user = null;
+            st.game = null;
+            stateChanged = true;
+          }
+        }
+      });
+      if (stateChanged) {
+        renderStations();
+        renderInspector();
+      }
+    }, 1000);
+
+    // راه‌اندازی اولیه
+    renderStations();
+    renderInspector();
+    sendSmartlaunchCommand(`OperatorHandshake=${adminCredentials.username}&Version=4.8`, 'احراز هویت اولیه با نام کاربری اختصاصی ادمین');
+  </script>
+</body>
+</html>
