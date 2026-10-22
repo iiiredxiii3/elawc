@@ -1,0 +1,9 @@
+{
+  "slHost": "127.0.0.1",
+  "slPort": 7831,
+  "httpPort": 3080,
+  "wsPort": 8080,
+  "eol": "\\r\\n",
+  "httpBase": "",
+  "logFile": "bridge.log"
+}

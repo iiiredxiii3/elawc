@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>پنل مدیریت تحت وب اسمارت‌لانچ — نسخه فارسی (رفع باگ رسپانسیو v3)</title>
+  <title>پنل مدیریت اسمارت‌لانچ — نسخه ۵ (اتصال زنده + عیب‌یابی)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+<script>/* اگر CDN در دسترس نبود، صفحه از کار نیفتد */window.lucide=window.lucide||{createIcons:function(){}};window.tailwind=window.tailwind||{};</script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -70,7 +71,7 @@
           <div class="min-w-0">
             <div class="font-bold text-sm text-white flex items-center gap-1.5">
               <span>اسمارت‌لانچ</span>
-              <span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 mono">v4.8 PRO</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 mono">v4.8.987</span>
             </div>
             <div class="text-[11px] text-slate-400 truncate">پنل مدیریت گیم‌نت و کنسول</div>
           </div>
@@ -183,6 +184,7 @@
             <span class="text-slate-400">صندوق شیفت:</span>
             <span class="font-bold text-emerald-400" id="kpi-revenue">۰ تومان</span>
           </div>
+        <span id="demo-badge" class="hidden px-2 py-0.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-bold whitespace-nowrap">داده نمایشی</span>
         </div>
       </div>
 
@@ -203,6 +205,8 @@
         </button>
       </div>
     </header>
+
+      <div id="conn-banner" class="hidden"></div>
 
     <!-- نوار عملیات گروهی (Multi-Select Action Bar) -->
     <div id="bulk-action-bar" class="hidden bg-gradient-to-l from-cyan-950/90 via-slate-900 to-slate-900 border-b border-cyan-500/40 px-4 py-2.5 flex-wrap items-center justify-between gap-2 shrink-0">
@@ -309,29 +313,63 @@
         <div id="pos-grid" class="stations-auto-grid"></div>
       </main>
 
-      <!-- تب ۴: کنسول دستورات خام TCP -->
+      <!-- تب ۴: عیب‌یابی و کنسول -->
       <main id="tab-api" class="flex-1 p-4 sm:p-5 overflow-y-auto hidden flex flex-col gap-4 min-w-0">
+
         <div class="bg-cyber-panel border border-cyber-border rounded-2xl p-4">
-          <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
             <h2 class="text-sm font-bold text-white flex items-center gap-2">
-              <i data-lucide="terminal" class="w-4 h-4 text-cyan-400"></i> ترمینال مستقیم سوکت اسمارت‌لانچ (پورت 7831)
+              <i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i> عیب‌یابی اتصال
             </h2>
-            <span class="text-[11px] mono text-emerald-400" id="api-auth-indicator">Operator: mk_supervisor (Custom Auth)</span>
+            <div class="flex flex-wrap gap-2 text-xs">
+              <button onclick="reconnectNow()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200">اتصال مجدد پل</button>
+              <button onclick="reconnectTcp()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200">اتصال مجدد TCP</button>
+              <button onclick="sendPing()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200">Ping</button>
+              <button onclick="openProtocolModal()" class="px-3 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/30">تنظیمات پروتکل</button>
+            </div>
           </div>
-          <p class="text-xs text-slate-400 mb-3">
-            تمامی عملیات‌های شما در رابط کاربری به همراه احراز هویت اختصاصی اپراتور (بدون استفاده از نام کاربری پیش‌فرض admin) در این کنسول ثبت و به پورت 7831 ارسال می‌شوند.
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 text-[11px]">
+            <div class="bg-slate-950 border border-cyber-border rounded-xl p-2.5"><div class="text-slate-500 mb-1">صفحه</div><div id="diag-page" class="font-semibold mono">-</div></div>
+            <div class="bg-slate-950 border border-cyber-border rounded-xl p-2.5"><div class="text-slate-500 mb-1">پل WebSocket</div><div id="diag-ws" class="font-semibold mono">-</div></div>
+            <div class="bg-slate-950 border border-cyber-border rounded-xl p-2.5"><div class="text-slate-500 mb-1">TCP سرور SmartLaunch</div><div id="diag-tcp" class="font-semibold mono">-</div></div>
+            <div class="bg-slate-950 border border-cyber-border rounded-xl p-2.5"><div class="text-slate-500 mb-1">حالت داده</div><div id="diag-mode" class="font-semibold mono">-</div></div>
+            <div class="bg-slate-950 border border-cyber-border rounded-xl p-2.5"><div class="text-slate-500 mb-1">آخرین داده‌ی دریافتی</div><div id="diag-rx" class="font-semibold mono">-</div></div>
+            <div class="bg-slate-950 border border-cyber-border rounded-xl p-2.5"><div class="text-slate-500 mb-1">تأخیر پل</div><div id="diag-lat" class="font-semibold mono">-</div></div>
+            <div class="bg-slate-950 border border-cyber-border rounded-xl p-2.5 col-span-2"><div class="text-slate-500 mb-1">آخرین خطا</div><div id="diag-err" class="font-semibold mono break-words">-</div></div>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-3 leading-relaxed">
+            ACK یعنی دستور روی سوکت نوشته شد، نه اینکه سرور آن را پذیرفته است. پاسخ واقعی سرور در خط‌های <span class="mono text-cyan-300">RX</span> می‌آید.
+            اگر سرور فقط باینری می‌فرستد، hex آن در لاگ دیده می‌شود.
           </p>
+        </div>
+
+        <div class="bg-cyber-panel border border-cyber-border rounded-2xl p-4">
           <div class="flex flex-col sm:flex-row gap-2">
-            <input id="raw-cmd-input" type="text" value="ComputerLogin=PC-04&User=Kaviri_X&Time=90" class="flex-1 bg-slate-950 border border-cyber-border rounded-xl px-3 py-2 text-xs mono text-cyan-300 focus:outline-none focus:border-cyan-400" />
-            <div class="flex gap-2">
-              <button onclick="sendRawCommandInput()" class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs whitespace-nowrap">ارسال دستور</button>
-              <button onclick="clearApiLog()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs whitespace-nowrap">پاک‌سازی</button>
+            <select id="raw-mode" class="bg-slate-950 border border-cyber-border rounded-xl px-2 py-2 text-xs text-slate-200">
+              <option value="tcp">TCP متن</option>
+              <option value="hex">TCP هگز</option>
+              <option value="http">HTTP (پروکسی)</option>
+            </select>
+            <input id="raw-cmd-input" type="text" placeholder="مثال: HELP   |   hex: 01 02 ff   |   GET /api/computers" onkeydown="if(event.key==='Enter')sendRawCommandInput()" class="flex-1 bg-slate-950 border border-cyber-border rounded-xl px-3 py-2 text-xs mono text-cyan-300 focus:outline-none focus:border-cyan-400" />
+            <button onclick="sendRawCommandInput()" class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs whitespace-nowrap">ارسال</button>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 mt-3">
+            <button data-f="ALL" onclick="setLogFilter('ALL')" class="log-filter-btn px-2.5 py-1 rounded-lg text-[11px] border bg-cyan-500/20 border-cyan-500/40 text-cyan-200">همه</button>
+            <button data-f="TX" onclick="setLogFilter('TX')" class="log-filter-btn px-2.5 py-1 rounded-lg text-[11px] border bg-slate-900 border-cyber-border text-slate-400">TX</button>
+            <button data-f="RX" onclick="setLogFilter('RX')" class="log-filter-btn px-2.5 py-1 rounded-lg text-[11px] border bg-slate-900 border-cyber-border text-slate-400">RX</button>
+            <button data-f="ERR" onclick="setLogFilter('ERR')" class="log-filter-btn px-2.5 py-1 rounded-lg text-[11px] border bg-slate-900 border-cyber-border text-slate-400">خطاها</button>
+            <span class="text-[11px] text-slate-500 mr-2">تعداد: <span id="log-count" class="mono">0</span></span>
+            <div class="flex gap-2 mr-auto">
+              <button onclick="downloadLog()" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px]">دانلود لاگ</button>
+              <button onclick="clearApiLog()" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px]">پاک‌سازی</button>
             </div>
           </div>
         </div>
 
-        <div id="api-log-box" class="flex-1 bg-slate-950 border border-cyber-border rounded-2xl p-4 mono text-xs overflow-y-auto space-y-1.5 min-h-[300px]"></div>
+        <div id="api-log-box" class="flex-1 bg-slate-950 border border-cyber-border rounded-2xl p-3 mono text-xs overflow-y-auto space-y-1.5 min-h-[300px]"></div>
+        <span id="api-auth-indicator" class="hidden"></span>
       </main>
+
 
       <!-- کشوی بازرس ایستگاه (Station Inspector) در سمت چپ -->
       <aside id="inspector-drawer" class="fixed xl:static inset-y-0 left-0 z-40 w-80 sm:w-[340px] bg-cyber-panel border-r border-cyber-border p-4 flex flex-col justify-between shrink-0 overflow-y-auto transform -translate-x-full xl:translate-x-0 transition-transform duration-200">
@@ -381,12 +419,12 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-slate-400 mb-1">IP سرور اسمارت‌لانچ</label>
-            <input id="cfg-sl-ip" type="text" value="127.0.0.1" class="w-full bg-slate-900 border border-cyber-border rounded-xl px-3 py-2 mono text-white" />
+            <label class="block text-slate-400 mb-1">IP سرور (از تنظیمات پل)</label>
+            <input id="cfg-sl-ip" type="text" value="127.0.0.1" disabled class="w-full bg-slate-900 border border-cyber-border rounded-xl px-3 py-2 mono text-white" />
           </div>
           <div>
-            <label class="block text-slate-400 mb-1">پورت TCP API</label>
-            <input id="cfg-sl-port" type="number" value="7831" class="w-full bg-slate-900 border border-cyber-border rounded-xl px-3 py-2 mono text-white" />
+            <label class="block text-slate-400 mb-1">پورت TCP (از تنظیمات پل)</label>
+            <input id="cfg-sl-port" type="number" value="7831" disabled class="w-full bg-slate-900 border border-cyber-border rounded-xl px-3 py-2 mono text-white" />
           </div>
         </div>
         <div class="grid grid-cols-2 gap-3 pt-1">
@@ -396,9 +434,11 @@
           </div>
           <div>
             <label class="block text-slate-300 font-semibold mb-1">رمز عبور اختصاصی API</label>
-            <input id="cfg-sl-pass" type="password" value="SL#9842!Kaviri" class="w-full bg-slate-950 border border-cyan-500/40 rounded-xl px-3 py-2 mono text-cyan-300" />
+            <input id="cfg-sl-pass" type="password" value="" autocomplete="off" placeholder="فقط در حافظه (ذخیره نمی‌شود)" class="w-full bg-slate-950 border border-cyan-500/40 rounded-xl px-3 py-2 mono text-cyan-300" />
           </div>
         </div>
+        <label class="flex items-center gap-2 pt-1 text-slate-300 cursor-pointer"><input id="cfg-sim" type="checkbox" class="accent-cyan-400" /> حالت شبیه‌ساز (بدون اتصال به سرور؛ فقط برای نمایش)</label>
+        <div class="text-[11px] text-slate-500">آدرس و پورت سرور SmartLaunch در فایل smartlaunch.config.json کنار برنامه (یا متغیرهای محیطی) تنظیم می‌شود.</div>
         <div id="auth-error-msg" class="hidden text-rose-400 text-[11px] font-semibold pt-1"></div>
       </div>
 
@@ -408,6 +448,35 @@
       </div>
     </div>
   </div>
+
+  <!-- مودال تنظیمات پروتکل -->
+  <div id="protocol-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-cyber-panel border border-cyber-border rounded-2xl w-full max-w-2xl p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-base font-bold text-white">تنظیمات پروتکل سرور SmartLaunch</h3>
+        <button onclick="closeProtocolModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="text-[11px] text-slate-400 leading-relaxed mb-3 space-y-1">
+        <p>فرمت دقیق دستورهای سرور باید با خروجی واقعی سرور شما کالیبره شود. ابتدا در تب «کنسول» ببینید سرور چه می‌فرستد.</p>
+        <p><b class="text-slate-200">handshake</b>: دستور ورود بعد از اتصال TCP، مثلاً <span class="mono text-cyan-300">LOGIN {user} {pass}</span><br>
+           <b class="text-slate-200">poll</b>: دستور دریافت لیست ایستگاه‌ها؛ <b class="text-slate-200">pollSec</b>: هر چند ثانیه تکرار شود (۰ = یک‌بار)<br>
+           <b class="text-slate-200">prefix</b>: پیشوند همه‌ی دستورها، مثلاً <span class="mono text-cyan-300">AuthUser={user}&amp;</span><br>
+           <b class="text-slate-200">map</b>: بازنویسی دستور، مثلاً <span class="mono text-cyan-300">{"ComputerLogin": "LOGIN {value} {User} {Time}"}</span> (متغیرها: {value} و پارامترهای دستور اصلی)<br>
+           <b class="text-slate-200">timeUnit</b>: <span class="mono">sec</span> یا <span class="mono">min</span> — واحد زمان باقی‌مانده در پاسخ سرور</p>
+        <p>پاسخ‌های JSON با کلیدهای <span class="mono">computers[]</span> یا <span class="mono">users[]</span> یا هر خط <span class="mono">Computer=3&amp;Status=Busy&amp;User=x&amp;Time=3600</span> به‌صورت خودکار تفسیر می‌شوند.</p>
+      </div>
+      <textarea id="proto-json" spellcheck="false" dir="ltr" class="w-full h-64 bg-slate-950 border border-cyber-border rounded-xl p-3 text-xs mono text-cyan-300 focus:outline-none focus:border-cyan-400"></textarea>
+      <div id="proto-err" class="hidden text-rose-400 text-[11px] font-semibold pt-2"></div>
+      <div class="flex justify-between gap-2 mt-4">
+        <button onclick="resetProtocol()" class="px-4 py-2 rounded-xl bg-slate-800 text-xs text-slate-300">بازگشت به پیش‌فرض</button>
+        <div class="flex gap-2">
+          <button onclick="closeProtocolModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-xs text-slate-300">انصراف</button>
+          <button onclick="saveProtocol()" class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs">ذخیره</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
   <!-- مودال ویرایش/ایجاد کاربر با مقادیر دلخواه -->
   <div id="member-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
@@ -470,7 +539,7 @@
 
     let adminCredentials = {
       username: 'mk_supervisor',
-      passwordHash: 'SL#9842!Kaviri'
+      passwordHash: ''
     };
 
     // --- لیست ایستگاه‌ها ---
@@ -576,33 +645,6 @@
       toggleInspector(false);
     }
 
-    function sendSmartlaunchCommand(cmdString, description = '') {
-      const timestamp = new Date().toLocaleTimeString('fa-IR');
-      const logBox = document.getElementById('api-log-box');
-      const miniFeed = document.getElementById('mini-api-feed');
-      const fullPayload = `AuthUser=${adminCredentials.username}&${cmdString}`;
-
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'SMARTLAUNCH_CMD',
-          operator: adminCredentials.username,
-          command: fullPayload
-        }));
-      }
-
-      const line = document.createElement('div');
-      line.className = 'flex flex-wrap items-center justify-between gap-2 py-1.5 px-2.5 rounded-lg bg-slate-900/90 border border-slate-800';
-      line.innerHTML = `
-        <div class="mono text-[11px]">
-          <span class="text-slate-500">[${timestamp}]</span>
-          <span class="text-emerald-400 font-semibold ml-1">TX &rarr; 7831:</span>
-          <span class="text-cyan-300 ml-1">${fullPayload}</span>
-        </div>
-        <span class="text-[11px] text-slate-400">${description}</span>
-      `;
-      logBox.prepend(line);
-      miniFeed.textContent = `TX -> ${fullPayload}`;
-    }
 
     // --- رندر کارت‌ها با هدر بازطراحی‌شده (ضد شکستن و ضد بیرون‌زدگی بج‌ها) ---
     function renderStations() {
@@ -927,6 +969,10 @@
         <!-- دکمه‌های کنترل سیستم و اکانت -->
         <div class="py-3 space-y-2">
           <div class="text-[11px] font-bold text-slate-400">کنترل‌های پیشرفته سیستم و کلاینت</div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-[11px] text-slate-400 shrink-0">MAC:</span>
+          <input value="${getMac(st.id)}" placeholder="AA:BB:CC:DD:EE:FF" onchange="setMac('${st.id}', this.value)" class="flex-1 min-w-0 bg-slate-950 border border-cyber-border rounded-lg px-2 py-1 text-[11px] mono text-cyan-300" title="برای Wake-on-LAN" />
+        </div>
 
           ${st.status === 'free' ? `
             <button onclick="startQuickSession('${st.id}', 60)" class="w-full py-2.5 px-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2">
@@ -1143,13 +1189,6 @@
       renderInspector();
     }
 
-    function wakeStation(id) {
-      const st = stations.find(s => s.id === id);
-      st.status = 'free';
-      sendSmartlaunchCommand(`ComputerTurnOn=${st.number}`, `ارسال پکت WOL به ${st.id}`);
-      renderStations();
-      renderInspector();
-    }
 
     function rebootStation(id) {
       const st = stations.find(s => s.id === id);
@@ -1397,70 +1436,10 @@
       sendSmartlaunchCommand(`ServerBroadcastMessage=${encodeURIComponent(msg)}`, 'ارسال پیام همگانی به کل سالن');
     }
 
-    function sendRawCommandInput() {
-      const input = document.getElementById('raw-cmd-input');
-      if (!input.value.trim()) return;
-      sendSmartlaunchCommand(input.value.trim(), 'ارسال دستور دستی');
-    }
 
-    function clearApiLog() {
-      document.getElementById('api-log-box').innerHTML = '';
-    }
 
-    function openSettingsModal() {
-      document.getElementById('auth-error-msg').classList.add('hidden');
-      document.getElementById('settings-modal').classList.remove('hidden');
-      document.getElementById('settings-modal').classList.add('flex');
-    }
 
-    function closeSettingsModal() {
-      document.getElementById('settings-modal').classList.add('hidden');
-      document.getElementById('settings-modal').classList.remove('flex');
-    }
 
-    function saveAndConnectBridge() {
-      const wsUrl = document.getElementById('cfg-ws-url').value.trim();
-      const slIp = document.getElementById('cfg-sl-ip').value.trim();
-      const slPort = document.getElementById('cfg-sl-port').value.trim();
-      const slUser = document.getElementById('cfg-sl-user').value.trim();
-      const slPass = document.getElementById('cfg-sl-pass').value.trim();
-      const errBox = document.getElementById('auth-error-msg');
-
-      if (!slUser || slUser.toLowerCase() === 'admin' || slUser.toLowerCase() === 'administrator') {
-        errBox.textContent = 'خطای امنیتی: نام کاربری پیش‌فرض "admin" غیرفعال است. لطفاً نام کاربری اختصاصی خود را وارد کنید.';
-        errBox.classList.remove('hidden');
-        return;
-      }
-      if (!slPass || slPass.length < 6) {
-        errBox.textContent = 'خطای امنیتی: رمز عبور ادمین باید حداقل ۶ کاراکتر باشد.';
-        errBox.classList.remove('hidden');
-        return;
-      }
-
-      adminCredentials.username = slUser;
-      adminCredentials.passwordHash = slPass;
-
-      document.getElementById('active-operator-badge').textContent = slUser;
-      document.getElementById('api-auth-indicator').textContent = `Operator: ${slUser} (Custom Auth)`;
-      document.getElementById('conn-host-display').textContent = `${wsUrl} -> ${slIp}:${slPort}`;
-
-      try {
-        if (ws) ws.close();
-        ws = new WebSocket(wsUrl);
-        ws.onopen = () => {
-          document.getElementById('conn-dot').className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0';
-          document.getElementById('conn-label').textContent = 'متصل به سرور (7831)';
-          sendSmartlaunchCommand(`OperatorHandshake=${encodeURIComponent(slUser)}&SecretKey=***`, 'احراز هویت اختصاصی اپراتور');
-        };
-        ws.onerror = () => {
-          document.getElementById('conn-dot').className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0';
-          document.getElementById('conn-label').textContent = 'شبیه‌ساز فعال (7831)';
-        };
-      } catch (e) {}
-
-      sendSmartlaunchCommand(`OperatorHandshake=${encodeURIComponent(slUser)}&AuthMode=Custom`, `تغییر اپراتور فعال به ${slUser}`);
-      closeSettingsModal();
-    }
 
     // شمارنده معکوس ۱ ثانیه‌ای بدون بازسازی کامل DOM (برای حفظ فوکوس اینپوت‌ها)
     setInterval(() => {
@@ -1488,10 +1467,650 @@
       }
     }, 1000);
 
-    // راه‌اندازی اولیه
-    renderStations();
-    renderInspector();
-    sendSmartlaunchCommand(`OperatorHandshake=${adminCredentials.username}&Version=4.8`, 'احراز هویت اولیه با نام کاربری اختصاصی ادمین');
+    // =====================================================================
+    //  اتصال زنده، سیستم خطا، و آداپتر پروتکل  (v5)
+    // =====================================================================
+    const SLCFG = window.__SL_CONFIG__ || null;
+    const LS = {
+      get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } },
+      set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+    };
+
+    const DEFAULT_PROTOCOL = {
+      eol: '',            // خالی = پیش‌فرض پل (\r\n)
+      prefix: '',         // مثال: "AuthUser={user}&"
+      handshake: '',      // بعد از اتصال TCP ارسال می‌شود. مثال: "LOGIN {user} {pass}"
+      poll: '',           // دستور درخواست لیست ایستگاه‌ها. مثال: "GETCOMPUTERS"
+      pollSec: 0,         // 0 = فقط یک‌بار بعد از اتصال
+      timeUnit: 'sec',    // sec | min  (واحد زمان باقی‌مانده در پاسخ سرور)
+      map: {}             // بازنویسی دستورها: { "ComputerLogin": "LOGIN {value} {User} {Time}" }
+    };
+    let protocol = Object.assign({}, DEFAULT_PROTOCOL);
+    try { Object.assign(protocol, JSON.parse(LS.get('sl_protocol', '{}')) || {}); } catch (e) {}
+    if (!protocol.map || typeof protocol.map !== 'object') protocol.map = {};
+
+    let simulatorMode = LS.get('sl_sim', '0') === '1';
+    let operatorPass = '';   // فقط در حافظه؛ هرگز ذخیره نمی‌شود
+    const net = { ws: 'closed', authed: false, tcp: 'idle', lastError: '', lastRxAt: 0, lastTxAt: 0,
+                  synced: false, latency: null, slHost: SLCFG ? SLCFG.slHost : '-', slPort: SLCFG ? SLCFG.slPort : '-' };
+    let wsRef = null, reconnectTimer = null, reconnectDelay = 1000, heartbeatTimer = null, lastPong = 0,
+        pollTimer = null, idleHintTimer = null, manualClose = false, cmdSeq = 0;
+    const pending = new Map();
+    let serverSnapshot = null;
+    const logBuffer = [];
+    let logFilter = 'ALL';
+
+    // ---------- ابزارهای عمومی ----------
+    function safeDecode(s) { try { return decodeURIComponent(s); } catch (e) { return s; } }
+    function nowFa() { return new Date().toLocaleTimeString('fa-IR'); }
+    function getMacs() { try { return JSON.parse(LS.get('sl_macs', '{}')) || {}; } catch (e) { return {}; } }
+    function getMac(id) { return getMacs()[id] || ''; }
+    function setMac(id, mac) { const m = getMacs(); if (mac && mac.trim()) m[id] = mac.trim(); else delete m[id]; LS.set('sl_macs', JSON.stringify(m)); }
+
+    // ---------- Toast ----------
+    function toast(msg, kind) {
+      const box = document.getElementById('toast-box');
+      if (!box) return;
+      const colors = { error: 'border-rose-500/60 text-rose-200', warn: 'border-amber-500/60 text-amber-200',
+                       ok: 'border-emerald-500/60 text-emerald-200', info: 'border-cyan-500/50 text-cyan-100' };
+      const el = document.createElement('div');
+      el.className = 'bg-slate-900/95 border rounded-xl px-3 py-2 text-xs shadow-xl cursor-pointer ' + (colors[kind] || colors.info);
+      el.textContent = msg;
+      el.onclick = () => el.remove();
+      box.appendChild(el);
+      while (box.children.length > 4) box.firstChild.remove();
+      setTimeout(() => el.remove(), kind === 'error' ? 8000 : 4500);
+    }
+
+    // ---------- لاگ ----------
+    function logLine(kind, text, desc) {
+      const entry = { t: nowFa(), iso: new Date().toISOString(), kind, text: String(text), desc: desc || '' };
+      logBuffer.push(entry);
+      if (logBuffer.length > 1500) logBuffer.shift();
+      if (logFilter === 'ALL' || logFilter === kind) appendLogEntry(entry, true);
+      const mini = document.getElementById('mini-api-feed');
+      if (mini && (kind === 'TX' || kind === 'RX' || kind === 'ERR')) mini.textContent = `${kind} ${entry.text}`.slice(0, 160);
+      const cnt = document.getElementById('log-count');
+      if (cnt) cnt.textContent = logBuffer.length;
+    }
+    const KIND_STYLE = {
+      TX: ['text-emerald-400', 'TX →'], RX: ['text-cyan-300', 'RX ←'], ERR: ['text-rose-400', 'ERR '],
+      INFO: ['text-slate-400', 'INFO'], SIM: ['text-amber-300', 'SIM '], ACK: ['text-slate-500', 'ACK ']
+    };
+    function appendLogEntry(e, prepend) {
+      const box = document.getElementById('api-log-box');
+      if (!box) return;
+      const st = KIND_STYLE[e.kind] || KIND_STYLE.INFO;
+      const row = document.createElement('div');
+      row.className = 'flex flex-wrap items-start justify-between gap-2 py-1 px-2.5 rounded-lg bg-slate-900/90 border border-slate-800';
+      const left = document.createElement('div');
+      left.className = 'mono text-[11px] break-all min-w-0';
+      const a = document.createElement('span'); a.className = 'text-slate-500'; a.textContent = `[${e.t}] `;
+      const b = document.createElement('span'); b.className = st[0] + ' font-semibold'; b.textContent = st[1] + ' ';
+      const c = document.createElement('span'); c.className = e.kind === 'ERR' ? 'text-rose-300' : 'text-slate-200'; c.textContent = e.text;
+      left.append(a, b, c);
+      row.appendChild(left);
+      if (e.desc) { const d = document.createElement('span'); d.className = 'text-[11px] text-slate-400'; d.textContent = e.desc; row.appendChild(d); }
+      if (prepend) box.prepend(row); else box.appendChild(row);
+      while (box.children.length > 600) box.lastChild.remove();
+    }
+    function setLogFilter(f) {
+      logFilter = f;
+      document.querySelectorAll('.log-filter-btn').forEach(b => {
+        b.className = 'log-filter-btn px-2.5 py-1 rounded-lg text-[11px] border ' + (b.dataset.f === f
+          ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-200' : 'bg-slate-900 border-cyber-border text-slate-400 hover:text-white');
+      });
+      const box = document.getElementById('api-log-box'); box.innerHTML = '';
+      logBuffer.filter(e => f === 'ALL' || e.kind === f).slice(-300).forEach(e => appendLogEntry(e, true));
+    }
+    function clearApiLog() { logBuffer.length = 0; document.getElementById('api-log-box').innerHTML = ''; const c = document.getElementById('log-count'); if (c) c.textContent = '0'; }
+    function downloadLog() {
+      const text = logBuffer.map(e => `${e.iso}\t${e.kind}\t${e.text}\t${e.desc}`).join('\n');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+      a.download = `smartlaunch-log-${Date.now()}.txt`; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    }
+    window.addEventListener('error', (e) => { logLine('ERR', `JS: ${e.message} (${(e.filename || '').split('/').pop()}:${e.lineno})`); toast('خطای برنامه: ' + e.message, 'error'); });
+    window.addEventListener('unhandledrejection', (e) => { logLine('ERR', 'Promise: ' + (e.reason && e.reason.message || e.reason)); });
+
+    // ---------- وضعیت اتصال و UI ----------
+    function canSend() { return net.ws === 'open' && net.authed && net.tcp === 'connected'; }
+    function whyNotConnected() {
+      if (!SLCFG) return 'صفحه از طریق سرور پل باز نشده (توکن ندارد). آدرس http://127.0.0.1:3080 را باز کنید.';
+      if (net.ws !== 'open') return 'پل WebSocket وصل نیست.';
+      if (!net.authed) return 'احراز هویت پل انجام نشده.';
+      if (net.tcp !== 'connected') return `اتصال TCP به سرور SmartLaunch (${net.slHost}:${net.slPort}) برقرار نیست.`;
+      return '';
+    }
+    function explainBridgeError(code, msg, host, port) {
+      const t = `${host}:${port}`;
+      if (code === 'ECONNREFUSED') return `سرور SmartLaunch روی ${t} اتصال را رد کرد (ECONNREFUSED). سرویس SL Server اجراست؟ آدرس/پورت درست است؟`;
+      if (code === 'ETIMEDOUT') return `اتصال به ${t} زمان‌بر شد (ETIMEDOUT). فایروال یا IP اشتباه؟`;
+      if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') return `آدرس ${host} پیدا نشد (DNS).`;
+      if (code === 'ECONNRESET') return `اتصال توسط سرور ${t} بسته شد (ECONNRESET). ممکن است پروتکل/احراز هویت اشتباه باشد.`;
+      return `خطای TCP ${t}: ${msg}`;
+    }
+    function setBanner(text, kind) {
+      const b = document.getElementById('conn-banner');
+      if (!b) return;
+      if (!text) { b.classList.add('hidden'); b.classList.remove('flex'); return; }
+      b.className = 'flex px-4 py-2 text-xs flex-wrap items-center justify-between gap-2 shrink-0 border-b ' +
+        (kind === 'error' ? 'bg-rose-950/70 border-rose-500/40 text-rose-200' : 'bg-amber-950/60 border-amber-500/40 text-amber-200');
+      b.innerHTML = '';
+      const sp = document.createElement('span'); sp.textContent = text;
+      const btns = document.createElement('div'); btns.className = 'flex gap-2';
+      const r = document.createElement('button'); r.className = 'px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100';
+      r.textContent = 'تلاش مجدد'; r.onclick = () => reconnectNow();
+      const d = document.createElement('button'); d.className = 'px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300';
+      d.textContent = 'عیب‌یابی'; d.onclick = () => switchTab('api');
+      btns.append(r, d); b.append(sp, btns);
+    }
+    function modeText() {
+      if (simulatorMode) return ['حالت شبیه‌ساز (بدون سرور)', 'text-amber-300'];
+      if (canSend() && net.synced) return ['LIVE — داده از سرور', 'text-emerald-400'];
+      if (canSend()) return ['LIVE — داده نمایشی (همگام نشده)', 'text-amber-300'];
+      return ['آفلاین — داده نمایشی', 'text-rose-400'];
+    }
+    function renderConnUI() {
+      const dot = document.getElementById('conn-dot'), label = document.getElementById('conn-label');
+      let color = 'bg-amber-400 animate-pulse', text = '';
+      if (simulatorMode) { color = 'bg-amber-400'; text = 'شبیه‌ساز (بدون اتصال)'; }
+      else if (!SLCFG) { color = 'bg-rose-500'; text = 'بدون توکن پل'; }
+      else if (net.ws === 'connecting') text = 'در حال اتصال به پل...';
+      else if (net.ws !== 'open') { color = 'bg-rose-500'; text = 'پل قطع است'; }
+      else if (!net.authed) text = 'احراز هویت پل...';
+      else if (net.tcp === 'connecting') text = `اتصال به SL ${net.slHost}:${net.slPort}...`;
+      else if (net.tcp === 'connected') { color = 'bg-emerald-400'; text = `متصل به SL (${net.slPort})` + (net.synced ? '' : ' — داده نمایشی'); }
+      else { color = 'bg-rose-500'; text = 'اتصال TCP به SL قطع است'; }
+      if (dot) dot.className = 'w-2.5 h-2.5 rounded-full shrink-0 ' + color;
+      if (label) label.textContent = text;
+
+      // بنر
+      if (simulatorMode) setBanner('حالت شبیه‌ساز فعال است؛ هیچ دستوری به سرور ارسال نمی‌شود و داده‌ها نمایشی‌اند.', 'warn');
+      else if (!SLCFG) setBanner('این صفحه از طریق برنامه/سرور پل باز نشده است. برنامه را اجرا کنید و آدرس http://127.0.0.1:3080 را باز کنید.', 'error');
+      else if (net.ws !== 'open' && net.ws !== 'connecting') setBanner(net.lastError || 'اتصال به پل WebSocket برقرار نیست.', 'error');
+      else if (net.authed && net.tcp !== 'connected' && net.tcp !== 'idle') setBanner(net.lastError || whyNotConnected(), 'error');
+      else if (net.authed && net.tcp === 'connected' && !net.synced) setBanner('اتصال برقرار است ولی لیست ایستگاه‌ها هنوز از سرور نیامده؛ داده‌های فعلی نمایشی‌اند. تب «کنسول» را برای دیدن پاسخ‌های سرور باز کنید.', 'warn');
+      else setBanner('');
+      renderDiag();
+    }
+    function setDiag(id, text, cls) {
+      const el = document.getElementById(id); if (!el) return;
+      el.textContent = text; el.className = 'font-semibold mono ' + (cls || 'text-slate-200');
+    }
+    function renderDiag() {
+      setDiag('diag-page', SLCFG ? 'توکن پل دارد' : 'بدون توکن', SLCFG ? 'text-emerald-400' : 'text-rose-400');
+      const wsMap = { open: ['وصل', 'text-emerald-400'], connecting: ['در حال اتصال', 'text-amber-300'], closed: ['قطع', 'text-rose-400'] };
+      const w = wsMap[net.ws] || wsMap.closed;
+      setDiag('diag-ws', net.ws === 'open' ? (net.authed ? 'وصل + احراز شد' : 'وصل (بدون احراز)') : w[0], net.ws === 'open' && net.authed ? 'text-emerald-400' : w[1]);
+      const tcpMap = { connected: ['وصل', 'text-emerald-400'], connecting: ['در حال اتصال', 'text-amber-300'], closed: ['قطع', 'text-rose-400'], idle: ['—', 'text-slate-400'] };
+      const t = tcpMap[net.tcp] || tcpMap.idle;
+      setDiag('diag-tcp', `${net.slHost}:${net.slPort} ${t[0]}`, t[1]);
+      setDiag('diag-rx', net.lastRxAt ? Math.round((Date.now() - net.lastRxAt) / 1000) + ' ثانیه پیش' : 'هنوز چیزی نیامده', net.lastRxAt ? 'text-emerald-400' : 'text-amber-300');
+      const m = modeText(); setDiag('diag-mode', m[0], m[1]);
+      setDiag('diag-lat', net.latency == null ? '—' : net.latency + ' ms', 'text-slate-200');
+      setDiag('diag-err', net.lastError || 'ندارد', net.lastError ? 'text-rose-300' : 'text-slate-400');
+      const demo = document.getElementById('demo-badge');
+      if (demo) { demo.classList.toggle('hidden', net.synced && !simulatorMode); }
+    }
+    setInterval(renderDiag, 2000);
+
+    // ---------- اتصال WebSocket ----------
+    function defaultWsUrl() {
+      return `ws://${location.hostname || '127.0.0.1'}:${SLCFG ? SLCFG.wsPort : 8080}`;
+    }
+    function connectBridge() {
+      clearTimeout(reconnectTimer);
+      if (simulatorMode) { renderConnUI(); return; }
+      if (!SLCFG) { net.lastError = 'توکن پل در دسترس نیست.'; logLine('ERR', 'صفحه بدون توکن پل باز شده است (file:// یا آدرس نادرست).'); renderConnUI(); return; }
+      if (wsRef) { wsRef.onclose = null; wsRef.onerror = null; try { wsRef.close(); } catch (e) {} }
+      const url = LS.get('sl_ws_url', '') || defaultWsUrl();
+      net.ws = 'connecting'; net.authed = false; net.tcp = 'idle'; manualClose = false;
+      renderConnUI();
+      logLine('INFO', 'اتصال به پل: ' + url);
+      let ws;
+      try { ws = new WebSocket(url); } catch (e) { net.ws = 'closed'; net.lastError = 'آدرس WebSocket نامعتبر: ' + e.message; logLine('ERR', net.lastError); renderConnUI(); return; }
+      wsRef = ws;
+
+      ws.onopen = () => {
+        net.ws = 'open'; reconnectDelay = 1000;
+        ws.send(JSON.stringify({ type: 'HELLO', token: SLCFG.token, operator: adminCredentials.username }));
+        startHeartbeat(); renderConnUI();
+      };
+      ws.onerror = () => {
+        net.lastError = `اتصال به پل ${url} ناموفق بود. برنامه/standalone-server.js اجراست؟ پورت درست است؟`;
+        logLine('ERR', net.lastError);
+      };
+      ws.onclose = (ev) => {
+        net.ws = 'closed'; net.authed = false; net.tcp = 'idle'; stopHeartbeat(); stopPolling();
+        if (!net.lastError) net.lastError = `اتصال به پل بسته شد (code ${ev.code}).`;
+        logLine('ERR', `WS closed code=${ev.code}${ev.reason ? ' reason=' + ev.reason : ''}`);
+        failPending('اتصال پل قطع شد');
+        renderConnUI();
+        if (!manualClose && ev.code !== 4003) {
+          reconnectTimer = setTimeout(connectBridge, reconnectDelay);
+          reconnectDelay = Math.min(reconnectDelay * 2, 15000);
+        }
+      };
+      ws.onmessage = (ev) => { try { handleBridgeMessage(JSON.parse(ev.data)); } catch (e) { logLine('ERR', 'پیام نامعتبر از پل: ' + e.message); } };
+    }
+    function reconnectNow() { reconnectDelay = 1000; net.lastError = ''; manualClose = false; connectBridge(); }
+    function reconnectTcp() { if (wsRef && wsRef.readyState === 1) { wsRef.send(JSON.stringify({ type: 'TCP_RECONNECT' })); logLine('INFO', 'درخواست اتصال مجدد TCP'); } else reconnectNow(); }
+    function sendPing() { if (wsRef && wsRef.readyState === 1) wsRef.send(JSON.stringify({ type: 'PING', t: Date.now() })); }
+    function startHeartbeat() {
+      stopHeartbeat(); lastPong = Date.now();
+      heartbeatTimer = setInterval(() => {
+        if (Date.now() - lastPong > 30000) { logLine('ERR', 'پل پاسخ نمی‌دهد (heartbeat)'); try { wsRef.close(); } catch (e) {} return; }
+        sendPing();
+      }, 10000);
+    }
+    function stopHeartbeat() { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+    function stopPolling() { clearInterval(pollTimer); pollTimer = null; clearTimeout(idleHintTimer); }
+    function failPending(reason) { pending.forEach((p) => { clearTimeout(p.timer); }); pending.clear(); }
+
+    function handleBridgeMessage(m) {
+      switch (m.type) {
+        case 'AUTH_OK':
+          net.authed = true; net.lastError = ''; net.slHost = m.slHost; net.slPort = m.slPort;
+          logLine('INFO', `پل تأیید شد (v${m.version}) → SL ${m.slHost}:${m.slPort}`);
+          renderConnUI(); break;
+        case 'AUTH_REJECTED':
+          net.authed = false; net.lastError = 'احراز هویت پل رد شد: ' + m.reason;
+          logLine('ERR', net.lastError); toast(net.lastError, 'error'); renderConnUI(); break;
+        case 'BRIDGE_STATUS': {
+          const was = net.tcp; net.tcp = m.tcp; net.slHost = m.host; net.slPort = m.port;
+          if (m.tcp === 'connected') {
+            net.lastError = ''; logLine('INFO', `TCP وصل شد: ${m.host}:${m.port}`); toast('به سرور SmartLaunch وصل شد', 'ok');
+            onTcpConnected();
+          } else if (m.tcp === 'closed' && was === 'connected') {
+            net.lastError = net.lastError || `اتصال TCP به ${m.host}:${m.port} قطع شد؛ تلاش مجدد خودکار...`;
+            logLine('ERR', net.lastError); stopPolling();
+          }
+          renderConnUI(); break;
+        }
+        case 'BRIDGE_ERROR':
+          net.lastError = explainBridgeError(m.code, m.error, m.host || net.slHost, m.port || net.slPort);
+          logLine('ERR', net.lastError); renderConnUI(); break;
+        case 'PONG': lastPong = Date.now(); net.latency = Date.now() - (m.t || Date.now()); renderDiag(); break;
+        case 'CMD_ACK': {
+          const p = pending.get(m.id); if (p) { clearTimeout(p.timer); pending.delete(m.id); }
+          logLine('ACK', `#${m.id} ${m.bytes} بایت نوشته شد`, p ? p.desc : ''); break;
+        }
+        case 'CMD_NACK': {
+          const p = pending.get(m.id); if (p) { clearTimeout(p.timer); pending.delete(m.id); }
+          logLine('ERR', `ارسال #${m.id} ناموفق: ${m.error}`, p ? p.desc : '');
+          toast('ارسال نشد: ' + m.error, 'error');
+          restoreSnapshot(); break;
+        }
+        case 'SL_DATA':
+          net.lastRxAt = Date.now(); clearTimeout(idleHintTimer);
+          logLine('RX', m.binary ? `[باینری ${m.bytes} بایت] hex: ${m.hex.slice(0, 400)}${m.truncated || m.hex.length > 400 ? '…' : ''}` : m.text.replace(/\r/g, '').trim().slice(0, 4000));
+          if (!m.binary && !/\n/.test(m.text)) tryIngestText(m.text);
+          renderDiag(); break;
+        case 'SMARTLAUNCH_EVENT':
+          net.lastRxAt = Date.now(); tryIngestText(m.payload); break;
+        case 'HTTP_RESPONSE':
+          net.lastRxAt = Date.now();
+          logLine('RX', `HTTP ${m.status} ${m.contentType}${m.truncated ? ' (بریده شد)' : ''}\n${(m.body || '').slice(0, 3000)}`);
+          tryIngestText(m.body); break;
+        default: logLine('INFO', 'پیام ناشناخته از پل: ' + m.type);
+      }
+    }
+
+    function onTcpConnected() {
+      if (protocol.handshake) {
+        try { transmit(fillTemplate(protocol.handshake, { user: adminCredentials.username, pass: operatorPass }), 'handshake'); }
+        catch (e) { logLine('ERR', 'handshake: ' + e.message); }
+      }
+      if (protocol.poll) {
+        const doPoll = () => { try { transmit(fillTemplate(protocol.poll, { user: adminCredentials.username }), 'درخواست لیست ایستگاه‌ها'); } catch (e) { logLine('ERR', 'poll: ' + e.message); } };
+        setTimeout(doPoll, 400);
+        clearInterval(pollTimer);
+        if (protocol.pollSec > 0) pollTimer = setInterval(() => { if (canSend()) doPoll(); }, protocol.pollSec * 1000);
+      }
+      clearTimeout(idleHintTimer);
+      idleHintTimer = setTimeout(() => {
+        if (!net.lastRxAt && canSend()) {
+          logLine('INFO', 'اتصال TCP برقرار است ولی سرور تا ۱۰ ثانیه چیزی نفرستاد؛ احتمالاً باید handshake/دستور لیست را در «تنظیمات پروتکل» تعریف کنید.');
+          toast('سرور هنوز داده‌ای نفرستاده — تب کنسول را ببینید', 'warn');
+        }
+      }, 10000);
+    }
+
+    // ---------- الگوها و ساخت دستور ----------
+    function parseCmdString(cmd) {
+      const parts = String(cmd).split('&'); const params = {}; let name = '', value = '';
+      parts.forEach((p, i) => {
+        const eq = p.indexOf('='); const k = eq < 0 ? p : p.slice(0, eq); const v = eq < 0 ? '' : safeDecode(p.slice(eq + 1));
+        if (i === 0) { name = k; value = v; } else params[k] = v;
+      });
+      return { name, value, params };
+    }
+    function fillTemplate(tpl, ctx) {
+      const missing = [];
+      const out = String(tpl).replace(/\{(\w+)\}/g, (m, k) => { if (k in ctx) return ctx[k]; missing.push(k); return m; });
+      if (missing.length) throw new Error('متغیر(های) بدون مقدار در الگو: ' + missing.join(', '));
+      return out;
+    }
+    function buildWireCommand(cmdString) {
+      const c = parseCmdString(cmdString);
+      const ctx = Object.assign({ name: c.name, value: c.value, user: adminCredentials.username, pass: operatorPass }, c.params);
+      let wire = cmdString;
+      if (protocol.map && protocol.map[c.name]) wire = fillTemplate(protocol.map[c.name], ctx);
+      if (protocol.prefix) wire = fillTemplate(protocol.prefix, ctx) + wire;
+      return wire;
+    }
+
+    // ---------- ارسال ----------
+    function transmit(command, desc, extra) {
+      if (simulatorMode) { logLine('SIM', command, desc); return true; }
+      if (!canSend()) {
+        const why = whyNotConnected();
+        logLine('ERR', `ارسال نشد: ${command} — ${why}`, desc);
+        toast('ارسال نشد: ' + why, 'error');
+        return false;
+      }
+      const id = ++cmdSeq;
+      const payload = Object.assign({ type: 'SMARTLAUNCH_CMD', id, command }, protocol.eol ? { eol: protocol.eol } : {}, extra || {});
+      try { wsRef.send(JSON.stringify(payload)); } catch (e) { logLine('ERR', 'ws.send: ' + e.message); return false; }
+      const timer = setTimeout(() => { if (pending.delete(id)) { logLine('ERR', `پل برای #${id} ACK نداد (۵ ثانیه)`, desc); toast('پل پاسخ نداد', 'error'); } }, 5000);
+      pending.set(id, { cmd: command, desc, timer });
+      net.lastTxAt = Date.now();
+      logLine('TX', command, desc);
+      return true;
+    }
+    function sendSmartlaunchCommand(cmdString, description = '') {
+      let wire;
+      try { wire = buildWireCommand(cmdString); }
+      catch (e) { logLine('ERR', `ساخت دستور ناموفق: ${e.message}`, description); toast('خطا در الگوی دستور: ' + e.message, 'error'); return false; }
+      return transmit(wire, description);
+    }
+    function sendBridgeMessage(obj, label) {
+      if (simulatorMode) { logLine('SIM', JSON.stringify(obj), label); return true; }
+      if (!(net.ws === 'open' && net.authed)) { const w = whyNotConnected(); logLine('ERR', 'ارسال نشد: ' + w, label); toast('ارسال نشد: ' + w, 'error'); return false; }
+      const id = ++cmdSeq;
+      wsRef.send(JSON.stringify(Object.assign({ id }, obj)));
+      const timer = setTimeout(() => { if (pending.delete(id)) logLine('ERR', `پل برای #${id} ACK نداد`, label); }, 8000);
+      pending.set(id, { cmd: obj.type, desc: label, timer });
+      logLine('TX', `${obj.type} ${obj.mac || obj.hex || obj.method + ' ' + obj.path || ''}`, label);
+      return true;
+    }
+
+    // کنسول دستی
+    function sendRawCommandInput() {
+      const input = document.getElementById('raw-cmd-input');
+      const mode = document.getElementById('raw-mode').value;
+      const text = input.value.trim();
+      if (!text) return;
+      if (mode === 'tcp') transmit(text, 'دستور دستی (خام)');
+      else if (mode === 'hex') sendBridgeMessage({ type: 'SMARTLAUNCH_HEX', hex: text }, 'hex دستی');
+      else {
+        const m = text.match(/^(GET|POST|PUT|DELETE)\s+(\S+)(?:\s+([\s\S]+))?$/i);
+        if (!m) { toast('قالب HTTP: GET /path  یا  POST /path body', 'warn'); return; }
+        if (!(SLCFG && SLCFG.httpProxy) && !simulatorMode) { toast('SL_HTTP_BASE در تنظیمات پل مشخص نشده است', 'error'); logLine('ERR', 'پروکسی HTTP فعال نیست؛ SL_HTTP_BASE یا smartlaunch.config.json → httpBase'); return; }
+        sendBridgeMessage({ type: 'HTTP_REQUEST', method: m[1].toUpperCase(), path: m[2], body: m[3] || '' }, 'HTTP دستی');
+      }
+    }
+
+    // ---------- Snapshot و ایمن‌سازی عملیات ----------
+    function takeSnapshot() { serverSnapshot = JSON.parse(JSON.stringify(stations)); }
+    function restoreSnapshot() {
+      if (!serverSnapshot) return;
+      stations.splice(0, stations.length, ...JSON.parse(JSON.stringify(serverSnapshot)));
+      scheduleRender();
+    }
+    let renderQueued = false;
+    function scheduleRender() {
+      if (renderQueued) return; renderQueued = true;
+      requestAnimationFrame(() => { renderQueued = false; renderStations(); renderInspector(); const t = document.getElementById('tab-members'); if (t && !t.classList.contains('hidden')) renderMembers(); });
+    }
+
+    // ---------- Ingest داده‌ی سرور ----------
+    const FIELDS = {
+      id: ['id', 'name', 'computername', 'computer', 'hostname', 'pc', 'station'],
+      number: ['number', 'num', 'computerid', 'index', 'no'],
+      status: ['status', 'state'],
+      user: ['user', 'username', 'login', 'member', 'currentuser'],
+      game: ['game', 'app', 'application', 'program', 'activeapp'],
+      time: ['timeleftsec', 'timeleft', 'remaining', 'remainingtime', 'secondsleft', 'time'],
+      zone: ['zone', 'group', 'computergroup'],
+      mac: ['mac', 'macaddress']
+    };
+    function lowerKeys(o) { const r = {}; Object.keys(o).forEach(k => { r[k.toLowerCase()] = o[k]; }); return r; }
+    function pickField(o, names) { for (const n of names) { const v = o[n]; if (v !== undefined && v !== null && v !== '') return v; } return undefined; }
+    function parseTimeSec(v) {
+      if (v === undefined || v === null || v === '') return 0;
+      if (typeof v === 'string' && v.includes(':')) {
+        const p = v.split(':').map(x => parseInt(x, 10) || 0);
+        return p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p[0] * 60 + (p[1] || 0);
+      }
+      const n = Number(v); if (!Number.isFinite(n)) return 0;
+      return protocol.timeUnit === 'min' ? Math.round(n * 60) : Math.round(n);
+    }
+    function normStatus(v, hasUser, time) {
+      if (v === undefined) return hasUser && time > 0 ? 'busy' : 'free';
+      const s = String(v).toLowerCase();
+      if (/off|down|unavail|disconnect|unreach|shut|خاموش/.test(s)) return 'offline';
+      if (/free|idle|available|ready|inactive|آزاد/.test(s)) return 'free';
+      if (/busy|in.?use|active|occupied|logged|running|playing|مشغول|فعال/.test(s)) return 'busy';
+      if (s === '1' || s === 'true') return 'busy';
+      if (s === '0' || s === 'false') return 'free';
+      return hasUser ? 'busy' : 'free';
+    }
+    const KNOWN_ZONES = { 'Pro Arena': 'سالن ای‌اسپورت (PC)', 'VIP Bootcamp': 'اتاق VIP بوت‌کمپ', 'Console Lounge': 'سالن کنسول PS5' };
+    function normalizeStation(raw, existing) {
+      if (!raw || typeof raw !== 'object') return null;
+      const o = lowerKeys(raw);
+      const idRaw = pickField(o, FIELDS.id) ?? pickField(o, FIELDS.number);
+      if (idRaw === undefined) return null;
+      const id = existing ? existing.id : String(idRaw);
+      const numRaw = pickField(o, FIELDS.number);
+      const number = Number(numRaw ?? (existing && existing.number) ?? parseInt(id.replace(/\D/g, ''), 10)) || 0;
+      const user = pickField(o, FIELDS.user); const game = pickField(o, FIELDS.game);
+      const time = parseTimeSec(pickField(o, FIELDS.time));
+      const status = normStatus(pickField(o, FIELDS.status), !!user, time);
+      const zoneRaw = pickField(o, FIELDS.zone);
+      const zone = zoneRaw !== undefined ? String(zoneRaw) : (existing && existing.zone) || 'Other';
+      const type = (existing && existing.type) || (/ps|console|xbox|کنسول/i.test(id + ' ' + zone) ? 'console' : 'pc');
+      const st = {
+        id, number, type, zone, zoneFa: KNOWN_ZONES[zone] || (zoneRaw !== undefined ? String(zoneRaw) : (existing && existing.zoneFa) || 'سایر'),
+        status, locked: existing ? !!existing.locked : false,
+        user: status === 'busy' ? (user !== undefined ? String(user) : 'کاربر') : null,
+        game: status === 'busy' ? (game !== undefined ? String(game) : null) : null,
+        timeLeftSec: status === 'busy' ? time : 0,
+        baseRate: (existing && existing.baseRate) || (type === 'console' ? CONSOLE_BASE_RATE : PC_PRO_RATE),
+        extraControllers: (existing && existing.extraControllers) || 0,
+        spec: (existing && existing.spec) || '—'
+      };
+      const mac = pickField(o, FIELDS.mac); if (mac) setMac(id, String(mac));
+      return st;
+    }
+    function stationIdOf(raw) {
+      if (!raw || typeof raw !== 'object') return undefined;
+      const o = lowerKeys(raw);
+      const v = pickField(o, FIELDS.id) ?? pickField(o, FIELDS.number);
+      return v === undefined ? undefined : String(v);
+    }
+    function applyStationList(list) {
+      const prev = net.synced ? new Map(stations.map(s => [s.id, s])) : new Map();
+      const next = [];
+      list.forEach(r => { const s = normalizeStation(r, prev.get(stationIdOf(r))); if (s) next.push(s); });
+      if (!next.length) { logLine('ERR', 'لیست ایستگاه‌ها دریافت شد ولی هیچ ردیفی قابل تشخیص نبود (نام فیلدها را بررسی کنید).'); return false; }
+      stations.splice(0, stations.length, ...next);
+      net.synced = true; takeSnapshot(); updateZoneCounts(); renderConnUI(); scheduleRender();
+      return true;
+    }
+    function upsertStation(raw) {
+      const o = lowerKeys(raw);
+      const idRaw = pickField(o, FIELDS.id) ?? pickField(o, FIELDS.number);
+      if (idRaw === undefined) return false;
+      const key = String(idRaw);
+      const numeric = /^\d+$/.test(key) ? Number(key) : null;
+      const numField = pickField(o, FIELDS.number);
+      let idx = stations.findIndex(s => s.id === key);
+      if (idx < 0 && numeric !== null) idx = stations.findIndex(s => s.number === numeric);
+      if (idx < 0 && numField !== undefined) idx = stations.findIndex(s => s.number === Number(numField));
+      const st = normalizeStation(raw, idx >= 0 ? stations[idx] : null);
+      if (!st) return false;
+      if (idx >= 0) stations[idx] = st; else stations.push(st);
+      if (net.synced) takeSnapshot();
+      scheduleRender(); return true;
+    }
+    function applyMemberList(list) {
+      const next = list.map(r => { const o = lowerKeys(r || {}); const name = o.username ?? o.user ?? o.name; if (name === undefined) return null;
+        return { username: String(name), group: String(o.group ?? o.usergroup ?? 'کاربر عادی'),
+                 status: /lock|ban|block|مسدود/.test(String(o.status ?? '').toLowerCase()) ? 'locked' : 'active',
+                 balance: Number(o.balance ?? o.money ?? 0) || 0, timeMin: Number(o.timemin ?? o.minutes ?? o.time ?? 0) || 0, activePc: String(o.activepc ?? o.computer ?? '-') }; }).filter(Boolean);
+      if (!next.length) return false;
+      members.splice(0, members.length, ...next); scheduleRender(); return true;
+    }
+    function ingestObject(obj) {
+      if (Array.isArray(obj)) { return obj.length && (obj[0].username !== undefined) ? applyMemberList(obj) : applyStationList(obj); }
+      if (!obj || typeof obj !== 'object') return false;
+      let done = false;
+      const sl = obj.computers || obj.stations || obj.Computers || obj.Stations;
+      if (Array.isArray(sl)) done = applyStationList(sl) || done;
+      const ml = obj.members || obj.users || obj.Users || obj.Members;
+      if (Array.isArray(ml)) done = applyMemberList(ml) || done;
+      if (!done && (obj.computer || obj.station)) done = upsertStation(obj.computer || obj.station);
+      if (!done) done = upsertStation(obj);
+      return done;
+    }
+    function tryIngestText(text) {
+      const t = String(text || '').trim();
+      if (!t) return;
+      try {
+        if (t[0] === '{' || t[0] === '[') {
+          const handled = ingestObject(JSON.parse(t));
+          if (handled) logLine('INFO', 'داده‌ی سرور تفسیر شد و UI به‌روز شد');
+          return;
+        }
+        if (t.includes('=') && /[&;|]/.test(t)) {
+          const o = {}; t.split(/[&;|]/).forEach(p => { const i = p.indexOf('='); if (i > 0) o[p.slice(0, i).trim()] = safeDecode(p.slice(i + 1).trim()); });
+          if (upsertStation(o)) logLine('INFO', 'وضعیت یک ایستگاه به‌روز شد');
+        }
+      } catch (e) { logLine('ERR', 'تفسیر داده‌ی سرور ناموفق: ' + e.message); }
+    }
+
+    function updateZoneCounts() {
+      document.querySelectorAll('.zone-btn').forEach(btn => {
+        const z = btn.dataset.zone; const span = btn.querySelector('.mono');
+        if (span) span.textContent = z === 'ALL' ? stations.length : stations.filter(s => s.zone === z).length;
+      });
+    }
+
+    // ---------- Wake-on-LAN ----------
+    function sendWolFor(id) {
+      const mac = getMac(id);
+      if (!mac) { toast(`MAC ایستگاه ${id} ثبت نشده؛ در پنل کنترل ایستگاه وارد کنید.`, 'warn'); logLine('ERR', `WOL ${id}: MAC ثبت نشده`); return false; }
+      return sendBridgeMessage({ type: 'WOL_PACKET', mac }, `Wake-on-LAN ${id}`);
+    }
+    function wakeStation(id) {
+      const st = stations.find(s => s.id === id); if (!st) return;
+      sendWolFor(id);
+      if (protocol.map && protocol.map.ComputerTurnOn !== undefined) sendSmartlaunchCommand(`ComputerTurnOn=${st.number}`, `روشن کردن ${st.id}`);
+      if (simulatorMode) { st.status = 'free'; renderStations(); renderInspector(); }
+    }
+
+    // ---------- تنظیمات و مودال‌ها ----------
+    function openSettingsModal() {
+      document.getElementById('auth-error-msg').classList.add('hidden');
+      document.getElementById('cfg-ws-url').value = LS.get('sl_ws_url', '') || (SLCFG ? defaultWsUrl() : 'ws://127.0.0.1:8080');
+      document.getElementById('cfg-sl-ip').value = net.slHost; document.getElementById('cfg-sl-port').value = net.slPort;
+      document.getElementById('cfg-sl-user').value = adminCredentials.username;
+      document.getElementById('cfg-sl-pass').value = operatorPass;
+      document.getElementById('cfg-sim').checked = simulatorMode;
+      document.getElementById('settings-modal').classList.remove('hidden');
+      document.getElementById('settings-modal').classList.add('flex');
+    }
+    function closeSettingsModal() {
+      document.getElementById('settings-modal').classList.add('hidden');
+      document.getElementById('settings-modal').classList.remove('flex');
+    }
+    function saveAndConnectBridge() {
+      const wsUrl = document.getElementById('cfg-ws-url').value.trim();
+      const slUser = document.getElementById('cfg-sl-user').value.trim();
+      const slPass = document.getElementById('cfg-sl-pass').value;
+      const sim = document.getElementById('cfg-sim').checked;
+      const errBox = document.getElementById('auth-error-msg');
+      const fail = (m) => { errBox.textContent = m; errBox.classList.remove('hidden'); };
+      if (!slUser || ['admin', 'administrator'].includes(slUser.toLowerCase())) return fail('نام کاربری پیش‌فرض "admin" مجاز نیست؛ یک نام اختصاصی وارد کنید.');
+      if (!/^wss?:\/\//i.test(wsUrl)) return fail('آدرس WebSocket باید با ws:// یا wss:// شروع شود.');
+      adminCredentials.username = slUser; operatorPass = slPass; LS.set('sl_op', slUser); LS.set('sl_ws_url', wsUrl);
+      simulatorMode = sim; LS.set('sl_sim', sim ? '1' : '0');
+      document.getElementById('active-operator-badge').textContent = slUser;
+      document.getElementById('api-auth-indicator').textContent = `Operator: ${slUser}`;
+      document.getElementById('conn-host-display').textContent = `${wsUrl} -> ${net.slHost}:${net.slPort}`;
+      if (sim) { manualClose = true; if (wsRef) try { wsRef.close(); } catch (e) {} net.ws = 'closed'; net.authed = false; net.tcp = 'idle'; renderConnUI(); }
+      else reconnectNow();
+      closeSettingsModal();
+    }
+    function openProtocolModal() {
+      document.getElementById('proto-json').value = JSON.stringify(protocol, null, 2);
+      document.getElementById('proto-err').classList.add('hidden');
+      document.getElementById('protocol-modal').classList.remove('hidden'); document.getElementById('protocol-modal').classList.add('flex');
+    }
+    function closeProtocolModal() { document.getElementById('protocol-modal').classList.add('hidden'); document.getElementById('protocol-modal').classList.remove('flex'); }
+    function saveProtocol() {
+      const err = document.getElementById('proto-err');
+      try {
+        const p = JSON.parse(document.getElementById('proto-json').value);
+        if (typeof p !== 'object' || Array.isArray(p)) throw new Error('باید یک شیء JSON باشد');
+        protocol = Object.assign({}, DEFAULT_PROTOCOL, p); if (!protocol.map || typeof protocol.map !== 'object') protocol.map = {};
+        LS.set('sl_protocol', JSON.stringify(protocol)); closeProtocolModal(); toast('تنظیمات پروتکل ذخیره شد', 'ok');
+        logLine('INFO', 'تنظیمات پروتکل به‌روز شد');
+        if (canSend()) onTcpConnected();
+      } catch (e) { err.textContent = 'JSON نامعتبر: ' + e.message; err.classList.remove('hidden'); }
+    }
+    function resetProtocol() { document.getElementById('proto-json').value = JSON.stringify(DEFAULT_PROTOCOL, null, 2); }
+
+    // ---------- Guard: عملیات بدون اتصال اجرا نمی‌شوند ----------
+    ['bulkAdjustTime', 'bulkLoginWalkIn', 'bulkSendMessage', 'bulkForceLogout', 'bulkPowerAction', 'setConsoleExtraControllers',
+     'adjustSingleStationTime', 'chargeCustomAmountToStation', 'startQuickSession', 'startMemberSession', 'transferStationPrompt',
+     'toggleLockStation', 'killActiveGame', 'messageStation', 'endStationSession', 'rebootStation', 'shutdownStation',
+     'adjustSelectedMembersTime', 'adjustSelectedMembersBalance', 'toggleMemberLock', 'resetMemberPass', 'saveMemberModal',
+     'sellPosItem', 'openBroadcastModal'].forEach((name) => {
+      const orig = window[name];
+      if (typeof orig !== 'function') return;
+      window[name] = function (...args) {
+        if (!simulatorMode && !canSend()) {
+          const why = whyNotConnected();
+          toast('عملیات انجام نشد: ' + why, 'error'); logLine('ERR', `${name} بلوکه شد — ${why}`);
+          return;
+        }
+        return orig.apply(this, args);
+      };
+    });
+    (function patchBulkWol() {
+      const orig = window.bulkPowerAction;
+      window.bulkPowerAction = function (action) {
+        const ids = Array.from(selectedStationSet);
+        const r = orig.apply(this, arguments);
+        if (action === 'WakeOnLAN') ids.forEach(sendWolFor);
+        return r;
+      };
+    })();
+    window.wakeStation = (function (inner) {
+      return function (id) {
+        if (!simulatorMode && !(net.ws === 'open' && net.authed)) { const w = whyNotConnected(); toast('عملیات انجام نشد: ' + w, 'error'); logLine('ERR', 'wakeStation بلوکه شد — ' + w); return; }
+        return inner(id);
+      };
+    })(wakeStation);
+
+    // ---------- راه‌اندازی ----------
+    (function init() {
+      const savedOp = LS.get('sl_op', ''); if (savedOp) adminCredentials.username = savedOp;
+      document.getElementById('active-operator-badge').textContent = adminCredentials.username;
+      document.getElementById('api-auth-indicator').textContent = `Operator: ${adminCredentials.username}`;
+      document.getElementById('conn-host-display').textContent = SLCFG ? `${LS.get('sl_ws_url', '') || defaultWsUrl()} -> ${SLCFG.slHost}:${SLCFG.slPort}` : 'بدون پل';
+      setLogFilter('ALL');
+      logLine('INFO', `پنل بالا آمد — ${SLCFG ? 'پل v' + SLCFG.bridgeVersion : 'بدون پل (file://)'}${simulatorMode ? ' — حالت شبیه‌ساز' : ''}`);
+      renderStations(); renderInspector(); updateZoneCounts();
+      connectBridge();
+    })();
+
   </script>
+  <div id="toast-box" class="fixed bottom-4 left-4 z-[60] flex flex-col gap-2 w-80 max-w-[90vw]"></div>
 </body>
 </html>
