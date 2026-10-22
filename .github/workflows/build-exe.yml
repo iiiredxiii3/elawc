@@ -1,0 +1,42 @@
+name: Build Single-File Windows EXE
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows-exe:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Lightweight Single EXE (Web + Bridge via pkg)
+        run: npm run build:light-exe
+
+      - name: Build Standalone Desktop App Single EXE (Electron Portable)
+        run: npm run build:desktop-exe
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Single-File EXEs as Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Smartlaunch-Admin-Windows-EXEs
+          path: |
+            dist/Smartlaunch-Admin-Desktop-Portable.exe
+            dist/Smartlaunch-Light-Server.exe
+          if-no-files-found: error
